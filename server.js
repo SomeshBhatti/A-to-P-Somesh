@@ -3,21 +3,28 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
+const path = require("path");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
+// Serve frontend files
+app.use(express.static(__dirname));
+
 const PORT = process.env.PORT || 3000;
 
 // =========================
-// HEALTH CHECK
+// HOME PAGE
 // =========================
 app.get("/", (req, res) => {
-  res.send("A-to-P server running");
+  res.sendFile(path.join(__dirname, "index.html"));
 });
 
+// =========================
+// STATUS CHECK
+// =========================
 app.get("/api/status", (req, res) => {
   res.json({
     success: true,
@@ -90,7 +97,7 @@ app.post("/api/post-pin", async (req, res) => {
 });
 
 // =========================
-// FALLBACK ROUTE
+// FALLBACK
 // =========================
 app.use((req, res) => {
   res.status(404).json({
