@@ -323,7 +323,9 @@
       label.textContent = 'Not connected to Pinterest';
       btn.textContent = 'Connect Pinterest';
       btn.className = 'btn-auth connect';
-      btn.onclick = () => location.href = '/api/auth/pinterest';
+      btn.onclick = () => {
+  alert('Pinterest already connected through server token');
+};
       extractBtn.disabled = true;
       extractBtn.textContent = 'Connect Pinterest first';
       boardField.style.display = 'none';
