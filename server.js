@@ -17,18 +17,9 @@ app.get("/", (req, res) => {
 });
 
 // ─── Status (frontend checks status.connected) ───────────────────────────────
-app.get("/api/status", async (req, res) => {
-  if (!process.env.PINTEREST_ACCESS_TOKEN) {
-    return res.json({ connected: false });
-  }
-  try {
-    const r = await axios.get("https://api.pinterest.com/v5/user_account", {
-      headers: { Authorization: `Bearer ${process.env.PINTEREST_ACCESS_TOKEN}` },
-    });
-    res.json({ connected: true, username: r.data.username });
-  } catch {
-    res.json({ connected: false });
-  }
+app.get("/api/status", (req, res) => {
+  const connected = !!process.env.PINTEREST_ACCESS_TOKEN;
+  res.json({ connected, username: null });
 });
 
 // ─── Boards (frontend expects { boards: [...] }) ──────────────────────────────
