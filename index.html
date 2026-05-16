@@ -8,123 +8,40 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg: #0f0f0f;
-      --surface: #1a1a1a;
-      --border: #2a2a2a;
-      --text: #f0ede8;
-      --muted: #666;
-      --subtle: #444;
-      --red: #e60023;
-      --red-dark: #cc0020;
-      --amazon: #ff9900;
-      --green: #1db954;
+      --bg: #0f0f0f; --surface: #1a1a1a; --border: #2a2a2a;
+      --text: #f0ede8; --muted: #666; --subtle: #444;
+      --red: #e60023; --red-dark: #cc0020; --amazon: #ff9900; --green: #1db954;
     }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'DM Sans', sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 48px 16px 80px;
-    }
-
-    /* Header */
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 48px 16px 80px; }
     .header { text-align: center; margin-bottom: 48px; }
-
-    .logo {
-      display: flex; align-items: center; justify-content: center;
-      gap: 12px; margin-bottom: 14px;
-    }
+    .logo { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 14px; }
     .logo-amz { font-size: 13px; font-weight: 500; color: var(--amazon); letter-spacing: 2px; text-transform: uppercase; }
     .logo-arrow { color: var(--subtle); font-size: 18px; }
-    .logo-p {
-      width: 36px; height: 36px; border-radius: 50%;
-      background: var(--red); display: flex; align-items: center; justify-content: center;
-      font-size: 20px; font-weight: 700; color: #fff; font-family: Georgia, serif;
-    }
-
+    .logo-p { width: 36px; height: 36px; border-radius: 50%; background: var(--red); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; color: #fff; font-family: Georgia, serif; }
     h1 { font-family: 'Playfair Display', serif; font-size: clamp(28px, 5vw, 40px); font-weight: 400; letter-spacing: -0.5px; }
     .subtitle { margin-top: 8px; color: var(--muted); font-size: 14px; font-weight: 300; }
-
-    /* Card */
-    .card {
-      width: 100%; max-width: 580px;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 16px; padding: 28px 28px 24px;
-      margin-bottom: 20px;
-    }
-
-    /* Auth bar */
-    .auth-bar {
-      display: flex; align-items: center; gap: 12px;
-      padding: 14px 16px;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 10px; width: 100%; max-width: 580px;
-      margin-bottom: 20px;
-    }
+    .card { width: 100%; max-width: 580px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px 28px 24px; margin-bottom: 20px; }
+    .auth-bar { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; width: 100%; max-width: 580px; margin-bottom: 20px; }
     .auth-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--subtle); flex-shrink: 0; }
     .auth-dot.connected { background: var(--green); }
     .auth-label { flex: 1; font-size: 13px; color: var(--muted); }
-    .btn-auth {
-      padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 500;
-      cursor: pointer; border: none; font-family: 'DM Sans', sans-serif;
-      transition: background 0.2s;
-    }
-    .btn-auth.connect { background: var(--red); color: #fff; }
-    .btn-auth.connect:hover { background: var(--red-dark); }
-    .btn-auth.disconnect { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-    .btn-auth.disconnect:hover { border-color: var(--subtle); color: #888; }
-
-    /* Form elements */
-    label.lbl {
-      display: block; font-size: 11px; font-weight: 500;
-      letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px;
-    }
-
-    input[type="text"], select, textarea {
-      width: 100%; background: #111; border: 1px solid var(--border);
-      border-radius: 10px; padding: 13px 14px;
-      font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--text);
-      outline: none; transition: border-color 0.2s; appearance: none;
-    }
+    label.lbl { display: block; font-size: 11px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    input[type="text"], select, textarea { width: 100%; background: #111; border: 1px solid var(--border); border-radius: 10px; padding: 13px 14px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--text); outline: none; transition: border-color 0.2s; appearance: none; }
     input[type="text"]:focus, select:focus, textarea:focus { border-color: var(--red); }
     input[type="text"]::placeholder, textarea::placeholder { color: var(--subtle); }
     select { cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
     select option { background: #1a1a1a; }
-
     .field { margin-bottom: 16px; }
-
-    .btn-primary {
-      width: 100%; padding: 14px; margin-top: 4px;
-      background: var(--red); color: #fff; border: none; border-radius: 10px;
-      font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
-      cursor: pointer; transition: background 0.2s, opacity 0.2s, transform 0.1s;
-    }
+    .btn-primary { width: 100%; padding: 14px; margin-top: 4px; background: var(--red); color: #fff; border: none; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s, opacity 0.2s, transform 0.1s; }
     .btn-primary:hover:not(:disabled) { background: var(--red-dark); }
     .btn-primary:active:not(:disabled) { transform: scale(0.99); }
     .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
-
-    /* Preview */
-    .preview {
-      width: 100%; max-width: 580px;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 16px; overflow: hidden; margin-bottom: 20px;
-      animation: fadeUp 0.35s ease;
-    }
+    .preview { width: 100%; max-width: 580px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 20px; animation: fadeUp 0.35s ease; }
     @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
-
-    .preview-header {
-      padding: 16px 22px; border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; gap: 8px;
-    }
+    .preview-header { padding: 16px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
     .preview-header-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); }
     .preview-header-lbl { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); font-weight: 500; }
-
     .pin-layout { display: flex; }
     .pin-img { width: 190px; flex-shrink: 0; background: #111; overflow: hidden; }
     .pin-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -135,59 +52,27 @@
     .pin-price { font-size: 20px; font-weight: 500; color: var(--red); }
     .pin-desc { font-size: 13px; color: var(--muted); line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
     .pin-source { font-size: 11px; color: var(--subtle); margin-top: auto; }
-
-    .preview-actions {
-      padding: 18px 22px; border-top: 1px solid var(--border);
-      display: flex; gap: 10px;
-    }
-    .btn-post {
-      flex: 1; padding: 13px; background: var(--red); color: #fff; border: none;
-      border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
-      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
-      transition: background 0.2s;
-    }
+    .preview-actions { padding: 18px 22px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
+    .btn-post { flex: 1; padding: 13px; background: var(--red); color: #fff; border: none; border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.2s; }
     .btn-post:hover:not(:disabled) { background: var(--red-dark); }
     .btn-post:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-reset {
-      padding: 13px 16px; background: transparent; color: var(--muted);
-      border: 1px solid var(--border); border-radius: 9px;
-      font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer;
-      transition: border-color 0.2s, color 0.2s;
-    }
+    .btn-reset { padding: 13px 16px; background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
     .btn-reset:hover { border-color: var(--subtle); color: #888; }
-
-    /* Toast / status */
-    .toast {
-      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
-      padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500;
-      display: flex; align-items: center; gap: 8px;
-      animation: slideUp 0.3s ease;
-      z-index: 99;
-    }
+    .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; animation: slideUp 0.3s ease; z-index: 99; }
     @keyframes slideUp { from { opacity:0; transform:translate(-50%, 12px); } to { opacity:1; transform:translate(-50%, 0); } }
     .toast.success { background: #0d2b16; color: var(--green); border: 1px solid #1a4a28; }
     .toast.error { background: #2b0d12; color: #ff6b7a; border: 1px solid #4a1a22; }
     .toast.info { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
-
-    /* Spinner */
     .spin { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-
     .loading-state { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 40px 0; color: var(--muted); font-size: 14px; }
     .loading-state .spin { width: 28px; height: 28px; border-color: var(--border); border-top-color: var(--red); }
-
-    /* Success card */
-    .success-card {
-      width: 100%; max-width: 580px; padding: 28px;
-      background: #0d1f12; border: 1px solid #1a4a28; border-radius: 16px;
-      text-align: center; animation: fadeUp 0.35s ease;
-    }
+    .success-card { width: 100%; max-width: 580px; padding: 28px; background: #0d1f12; border: 1px solid #1a4a28; border-radius: 16px; text-align: center; animation: fadeUp 0.35s ease; }
     .success-icon { font-size: 36px; margin-bottom: 12px; }
     .success-card h2 { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 400; color: var(--green); margin-bottom: 8px; }
     .success-card p { font-size: 13px; color: #5a9b6a; margin-bottom: 20px; }
     .btn-another { padding: 11px 20px; background: transparent; border: 1px solid #1a4a28; color: var(--green); border-radius: 9px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: background 0.2s; }
     .btn-another:hover { background: rgba(29,185,84,0.08); }
-
     .edit-toggle { background: none; border: none; color: var(--subtle); font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; gap: 4px; padding: 10px 22px; transition: color 0.2s; }
     .edit-toggle:hover { color: #888; }
     .edit-panel { padding: 0 22px 18px; border-top: 1px solid var(--border); }
@@ -210,8 +95,7 @@
 <!-- Auth bar -->
 <div class="auth-bar" id="authBar">
   <div class="auth-dot" id="authDot"></div>
-  <span class="auth-label" id="authLabel">Not connected to Pinterest</span>
-  <button class="btn-auth connect" id="authBtn">Connect Pinterest</button>
+  <span class="auth-label" id="authLabel">Checking Pinterest connection…</span>
 </div>
 
 <!-- Main form -->
@@ -226,14 +110,14 @@
       <option value="">Loading boards…</option>
     </select>
   </div>
-  <button class="btn-primary" id="extractBtn" disabled>Connect Pinterest first</button>
+  <button class="btn-primary" id="extractBtn" disabled>Checking connection…</button>
 </div>
 
 <!-- Loading -->
 <div id="loadingState" style="display:none;">
   <div class="loading-state">
     <div class="spin"></div>
-    <span id="loadingMsg">Extracting product details…</span>
+    <span>Extracting product details…</span>
   </div>
 </div>
 
@@ -255,7 +139,6 @@
       <div class="pin-source">🔗 amazon.com</div>
     </div>
   </div>
-
   <button class="edit-toggle" id="editToggle">✏️ Edit details</button>
   <div class="edit-panel" id="editPanel" style="display:none;">
     <div class="edit-inner">
@@ -265,7 +148,6 @@
       <div class="field"><label class="lbl">Image URL</label><input type="text" id="editImage" /></div>
     </div>
   </div>
-
   <div class="preview-actions">
     <button class="btn-post" id="postBtn">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738.098.119.112.224.083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z"/></svg>
@@ -290,53 +172,36 @@
   let product = null;
   let showEdit = false;
 
-  // ── Init ──────────────────────────────────────────────────────────────────
   async function init() {
-    const params = new URLSearchParams(location.search);
-    if (params.get('connected') === 'true') showToast('✅ Pinterest connected!', 'success');
-    if (params.get('error')) showToast('❌ ' + (params.get('error') === 'auth_failed' ? 'Authentication failed' : 'Connection failed. Check your credentials.'), 'error');
-    history.replaceState({}, '', '/');
-
-    const status = await fetch('/api/status').then(r => r.json());
-    updateAuthUI(status);
-    if (status.connected) loadBoards();
+    try {
+      const status = await fetch('/api/status').then(r => r.json());
+      updateAuthUI(status);
+      if (status.connected) loadBoards();
+    } catch(e) {
+      document.getElementById('authLabel').textContent = 'Could not reach server';
+      document.getElementById('extractBtn').textContent = 'Server error — try refreshing';
+    }
   }
 
   function updateAuthUI(status) {
     const dot = document.getElementById('authDot');
     const label = document.getElementById('authLabel');
-    const btn = document.getElementById('authBtn');
     const extractBtn = document.getElementById('extractBtn');
     const boardField = document.getElementById('boardField');
 
     if (status.connected) {
       dot.classList.add('connected');
-      label.textContent = status.username ? `Connected as @${status.username}` : 'Connected to Pinterest';
-      btn.textContent = 'Disconnect';
-      btn.className = 'btn-auth disconnect';
-      btn.onclick = disconnect;
+      label.textContent = status.username ? `Connected as @${status.username}` : 'Connected to Pinterest ✓';
       extractBtn.disabled = false;
       extractBtn.textContent = 'Extract & Preview Pin →';
       boardField.style.display = 'block';
     } else {
       dot.classList.remove('connected');
-      label.textContent = 'Not connected to Pinterest';
-      btn.textContent = 'Connect Pinterest';
-      btn.className = 'btn-auth connect';
-      btn.onclick = () => {
-  alert('Pinterest already connected through server token');
-};
+      label.textContent = '⚠️ Pinterest not connected — check PINTEREST_ACCESS_TOKEN in Render';
       extractBtn.disabled = true;
-      extractBtn.textContent = 'Connect Pinterest first';
+      extractBtn.textContent = 'Pinterest not connected';
       boardField.style.display = 'none';
     }
-  }
-
-  async function disconnect() {
-    await fetch('/auth/disconnect', { method: 'POST' });
-    updateAuthUI({ connected: false });
-    document.getElementById('boardSelect').innerHTML = '<option value="">Loading boards…</option>';
-    reset();
   }
 
   async function loadBoards() {
@@ -349,26 +214,21 @@
     }
   }
 
-  // ── Extract ───────────────────────────────────────────────────────────────
   document.getElementById('extractBtn').addEventListener('click', extractProduct);
   document.getElementById('amazonUrl').addEventListener('keydown', e => { if (e.key === 'Enter') extractProduct(); });
 
   async function extractProduct() {
     const url = document.getElementById('amazonUrl').value.trim();
     if (!url) return;
-
     show('formCard', false);
     show('loadingState', true);
-
     try {
       const r = await fetch('/api/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amazonUrl: url }),
       }).then(res => res.json());
-
       if (r.error) throw new Error(r.error);
-
       product = { ...r.product, amazonUrl: url };
       renderPreview();
       show('loadingState', false);
@@ -383,38 +243,28 @@
   function renderPreview() {
     document.getElementById('pinTitle').textContent = product.title || '';
     document.getElementById('pinDesc').textContent = product.description || '';
-
     const price = document.getElementById('pinPrice');
-    if (product.price) { price.textContent = product.price; price.style.display = ''; }
-    else price.style.display = 'none';
-
+    if (product.price) { price.textContent = product.price; price.style.display = ''; } else price.style.display = 'none';
     const brand = document.getElementById('pinBrand');
-    if (product.brand) { brand.textContent = product.brand; brand.style.display = ''; }
-    else brand.style.display = 'none';
-
+    if (product.brand) { brand.textContent = product.brand; brand.style.display = ''; } else brand.style.display = 'none';
     const imgCol = document.getElementById('pinImgCol');
     const placeholder = document.getElementById('pinImgPlaceholder');
     if (product.imageUrl) {
       let img = imgCol.querySelector('img');
       if (!img) { img = document.createElement('img'); imgCol.appendChild(img); }
-      img.src = product.imageUrl;
-      img.alt = product.title;
-      img.style.display = '';
+      img.src = product.imageUrl; img.alt = product.title; img.style.display = '';
       placeholder.style.display = 'none';
     } else {
       const img = imgCol.querySelector('img');
       if (img) img.style.display = 'none';
       placeholder.style.display = '';
     }
-
-    // Sync edit fields
     document.getElementById('editTitle').value = product.title || '';
     document.getElementById('editPrice').value = product.price || '';
     document.getElementById('editDesc').value = product.description || '';
     document.getElementById('editImage').value = product.imageUrl || '';
   }
 
-  // ── Edit toggle ───────────────────────────────────────────────────────────
   document.getElementById('editToggle').addEventListener('click', () => {
     showEdit = !showEdit;
     document.getElementById('editPanel').style.display = showEdit ? 'block' : 'none';
@@ -429,33 +279,25 @@
     });
   });
 
-  // ── Post pin ──────────────────────────────────────────────────────────────
   document.getElementById('postBtn').addEventListener('click', postPin);
 
   async function postPin() {
     const boardId = document.getElementById('boardSelect').value;
     if (!boardId) { showToast('Please select a board', 'error'); return; }
-
     const btn = document.getElementById('postBtn');
     btn.disabled = true;
     btn.innerHTML = '<div class="spin"></div> Posting…';
-
     try {
       const r = await fetch('/api/post-pin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          amazonUrl: product.amazonUrl,
-          boardId,
-          title: product.title,
-          description: product.description,
-          imageUrl: product.imageUrl,
-          price: product.price,
+          amazonUrl: product.amazonUrl, boardId,
+          title: product.title, description: product.description,
+          imageUrl: product.imageUrl, price: product.price,
         }),
       }).then(res => res.json());
-
       if (r.error) throw new Error(r.error);
-
       show('previewCard', false);
       show('successCard', true);
     } catch (e) {
@@ -466,32 +308,23 @@
     }
   }
 
-  // ── Reset ─────────────────────────────────────────────────────────────────
   document.getElementById('resetBtn').addEventListener('click', reset);
   document.getElementById('anotherBtn').addEventListener('click', () => { show('successCard', false); show('formCard', true); });
 
   function reset() {
-    product = null;
-    showEdit = false;
+    product = null; showEdit = false;
     document.getElementById('amazonUrl').value = '';
     document.getElementById('editPanel').style.display = 'none';
     document.getElementById('editToggle').textContent = '✏️ Edit details';
-    show('previewCard', false);
-    show('successCard', false);
-    show('formCard', true);
+    show('previewCard', false); show('successCard', false); show('formCard', true);
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  function show(id, visible) {
-    document.getElementById(id).style.display = visible ? '' : 'none';
-  }
+  function show(id, visible) { document.getElementById(id).style.display = visible ? '' : 'none'; }
 
   let toastTimer;
   function showToast(msg, type = 'info') {
     const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.className = `toast ${type}`;
-    t.style.display = 'flex';
+    t.textContent = msg; t.className = `toast ${type}`; t.style.display = 'flex';
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => { t.style.display = 'none'; }, 4000);
   }
