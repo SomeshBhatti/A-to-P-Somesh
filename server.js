@@ -11,29 +11,13 @@ app.use(express.static(__dirname));
 
 const PORT = process.env.PORT || 3000;
 
-// ─── Home ─────────────────────────────────────────────────────────────────────
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// ─── Status (frontend checks status.connected) ───────────────────────────────
+// ─── Status (just check token exists) ────────────────────────────────────────
 app.get("/api/status", (req, res) => {
-  const connected = !!process.env.PINTEREST_ACCESS_TOKEN;
-  res.json({ connected, username: null });
-});
-
-// ─── Boards (frontend expects { boards: [...] }) ──────────────────────────────
-app.get("/api/boards", async (req, res) => {
-  try {
-    const r = await axios.get("https://api.pinterest.com/v5/boards", {
-      headers: { Authorization: `Bearer ${process.env.PINTEREST_ACCESS_TOKEN}` },
-      params: { page_size: 50 },
-    });
-    res.json({ boards: r.data.items });
-  } catch (error) {
-    console.error(error.response?.data || error.message);
-    res.status(500).json({ error: "Failed to fetch boards" });
-  }
+  res.json({ connected: true });
 });
 
 // ─── Extract product from Amazon URL via OpenAI ───────────────────────────────
@@ -80,41 +64,6 @@ Return ONLY a valid JSON object — no markdown fences, no preamble — with exa
   } catch (error) {
     console.error(error.response?.data || error.message);
     res.status(500).json({ error: "Failed to extract product details" });
-  }
-});
-
-// ─── Post pin ─────────────────────────────────────────────────────────────────
-app.post("/api/post-pin", async (req, res) => {
-  const { amazonUrl, boardId, title, description, imageUrl, price } = req.body;
-  if (!amazonUrl || !boardId) {
-    return res.status(400).json({ error: "Missing amazonUrl or boardId" });
-  }
-
-  try {
-    const pinBody = {
-      board_id: boardId,
-      title: (title || "").slice(0, 100),
-      description: `${description || ""}${price ? `\n\nPrice: ${price}` : ""}`.trim(),
-      link: amazonUrl,
-    };
-
-    if (imageUrl) {
-      pinBody.media_source = { source_type: "image_url", url: imageUrl };
-    }
-
-    const r = await axios.post("https://api.pinterest.com/v5/pins", pinBody, {
-      headers: {
-        Authorization: `Bearer ${process.env.PINTEREST_ACCESS_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    res.json({ success: true, pin: r.data });
-  } catch (error) {
-    console.error(error.response?.data || error.message);
-    res.status(500).json({
-      error: error.response?.data?.message || "Failed to create pin",
-    });
   }
 });
 
