@@ -15,30 +15,29 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// ─── Status (just check token exists) ────────────────────────────────────────
 app.get("/api/status", (req, res) => {
   res.json({ connected: true });
 });
 
-// ─── Extract product from Amazon URL via OpenAI ───────────────────────────────
+// ─── Extract product via Groq (free, no credit card needed) ──────────────────
 app.post("/api/extract", async (req, res) => {
   const { amazonUrl } = req.body;
   if (!amazonUrl) return res.status(400).json({ error: "Missing amazonUrl" });
 
   try {
     const r = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
+      "https://api.groq.com/openai/v1/chat/completions",
       {
-        model: "gpt-4o",
+        model: "llama-3.3-70b-versatile",
         max_tokens: 1000,
         messages: [
           {
             role: "system",
-            content: `You are a product data extractor. When given an Amazon URL, extract product details.
+            content: `You are a product data extractor. When given an Amazon URL, extract product details from your knowledge or by analyzing the URL structure.
 Return ONLY a valid JSON object — no markdown fences, no preamble — with exactly these fields:
 {
   "title": "product name, concise, under 100 characters",
-  "price": "price with currency symbol e.g. $24.99, or empty string if not found",
+  "price": "price with currency symbol e.g. ₹999 or $24.99, or empty string if not found",
   "description": "2-3 sentence product description ideal for a Pinterest pin",
   "imageUrl": "direct CDN image URL ending in .jpg/.jpeg/.png/.webp or empty string",
   "brand": "brand name or empty string"
@@ -52,7 +51,7 @@ Return ONLY a valid JSON object — no markdown fences, no preamble — with exa
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
           "Content-Type": "application/json",
         },
       }
