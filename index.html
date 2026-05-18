@@ -150,7 +150,9 @@
     }
   }
 
-  function getPinterestUrl() {
+  function openPinterest() {
+    window.open(getPinterestUrl(), '_blank');
+  }
     if (!product) return '#';
     const desc = [product.title, product.price, product.description].filter(Boolean).join(' — ');
     const params = new URLSearchParams({ url: product.amazonUrl, description: desc });
