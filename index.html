@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Amazon → Pinterest</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{background:#0f0f0f;color:#f0ede8;font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 16px 80px}
@@ -12,9 +12,8 @@ body{background:#0f0f0f;color:#f0ede8;font-family:'DM Sans',sans-serif;min-heigh
 .logo{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px}
 .logo-amz{font-size:12px;font-weight:500;color:#ff9900;letter-spacing:2px;text-transform:uppercase}
 .logo-p{width:34px;height:34px;border-radius:50%;background:#e60023;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;font-family:Georgia,serif}
-h1{font-family:'Playfair Display',serif;font-size:clamp(24px,5vw,36px);font-weight:400}
+h1{font-family:'Playfair Display',serif;font-size:clamp(24px,5vw,36px);font-weight:400;color:#f0ede8}
 .sub{margin-top:6px;color:#555;font-size:13px}
-
 .card{width:100%;max-width:560px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:14px;padding:22px;margin-bottom:16px}
 .lbl{display:block;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:#555;margin-bottom:7px}
 input,textarea{width:100%;background:#111;border:1px solid #2a2a2a;border-radius:9px;padding:12px 13px;font-family:'DM Sans',sans-serif;font-size:14px;color:#f0ede8;outline:none}
@@ -22,43 +21,51 @@ input:focus,textarea:focus{border-color:#e60023}
 input::placeholder{color:#444}
 textarea{resize:vertical;min-height:68px}
 .field{margin-bottom:13px}
-
 .btn-red{width:100%;padding:14px;background:#e60023;color:#fff;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px}
 .btn-red:hover{background:#cc0020}
 .btn-red:disabled{opacity:0.4;cursor:not-allowed}
-
 .preview{width:100%;max-width:560px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:14px;overflow:hidden;margin-bottom:16px;animation:up 0.3s ease}
 @keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .ph{padding:13px 18px;border-bottom:1px solid #2a2a2a;display:flex;align-items:center;gap:7px}
 .ph-dot{width:7px;height:7px;border-radius:50%;background:#e60023}
 .ph-lbl{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#555;font-weight:500}
-
 .pin{display:flex}
-.pin-img{width:170px;flex-shrink:0;background:#111;overflow:hidden;min-height:170px}
-.pin-img img{width:100%;height:100%;object-fit:cover;display:block}
-.pin-no-img{width:100%;height:170px;display:flex;align-items:center;justify-content:center;color:#333;font-size:28px}
+.pin-img-wrap{width:170px;flex-shrink:0;background:#111;overflow:hidden;min-height:200px;position:relative}
+.pin-img-wrap img,.pin-img-wrap canvas{width:100%;height:100%;object-fit:cover;display:block}
+.pin-no-img{width:100%;height:200px;display:flex;align-items:center;justify-content:center;color:#333;font-size:28px}
 .pin-info{flex:1;padding:18px;display:flex;flex-direction:column;gap:7px}
 .pin-brand{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#444}
-.pin-title{font-family:'Playfair Display',serif;font-size:15px;line-height:1.3}
 .pin-price{font-size:20px;font-weight:600;color:#e60023}
 .pin-desc{font-size:12px;color:#666;line-height:1.6}
 .pin-src{font-size:11px;color:#444;margin-top:auto}
 
-.cta{padding:16px 18px;border-top:1px solid #2a2a2a;display:flex;flex-direction:column;gap:10px}
-.pinterest-btn{width:100%;padding:15px;background:#e60023;color:#fff;border:none;border-radius:11px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
-.pinterest-btn:hover{background:#cc0020}
-.hint{font-size:11px;color:#444;text-align:center}
-.row{display:flex;gap:9px}
-.btn-sm{flex:1;padding:10px;background:transparent;color:#555;border:1px solid #2a2a2a;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer}
-.btn-sm:hover{border-color:#444;color:#888}
+/* Enhance panel */
+.enhance-wrap{padding:14px 18px;border-top:1px solid #2a2a2a;background:#111}
+.enhance-title{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#555;margin-bottom:12px;font-weight:500}
+.style-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.style-opt{padding:10px 6px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:12px;color:#888;cursor:pointer;text-align:center;transition:all 0.2s}
+.style-opt:hover{border-color:#444;color:#aaa}
+.style-opt.active{background:#e60023;border-color:#e60023;color:#fff}
+.style-opt .icon{font-size:18px;display:block;margin-bottom:3px}
+.btn-enhance{width:100%;padding:13px;background:linear-gradient(135deg,#e60023,#ff4d6d);color:#fff;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-enhance:hover{opacity:0.9}
+.btn-enhance:disabled{opacity:0.5;cursor:not-allowed}
 
-.edit-wrap{padding:0 18px 16px;border-top:1px solid #2a2a2a}
-.edit-inner{padding-top:14px;display:flex;flex-direction:column;gap:11px}
+/* Enhanced canvas view */
+.canvas-wrap{width:100%;max-width:560px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:14px;overflow:hidden;margin-bottom:16px;animation:up 0.3s ease}
+.canvas-wrap canvas{width:100%;height:auto;display:block}
+.canvas-actions{padding:16px 18px;border-top:1px solid #2a2a2a;display:flex;flex-direction:column;gap:10px}
 
+.edit-wrap{padding:14px 18px;border-top:1px solid #2a2a2a}
+.edit-inner{display:flex;flex-direction:column;gap:11px;padding-top:14px}
 .loading{display:flex;flex-direction:column;align-items:center;gap:12px;padding:48px 0;color:#555;font-size:13px}
 .spin{width:26px;height:26px;border:2px solid #2a2a2a;border-top-color:#e60023;border-radius:50%;animation:spin 0.7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-
+.btn-sm{padding:10px;background:transparent;color:#555;border:1px solid #2a2a2a;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer}
+.btn-sm:hover{border-color:#444;color:#888}
+.ai-thinking{display:flex;flex-direction:column;align-items:center;gap:12px;padding:32px 0;color:#555;font-size:13px;text-align:center}
+.ai-thinking .spin{border-top-color:#e60023}
+.ai-msg{font-size:12px;color:#444;margin-top:4px}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:11px 18px;border-radius:9px;font-size:13px;font-weight:500;z-index:99;white-space:nowrap;border:1px solid #4a1a22;background:#2b0d12;color:#ff6b7a;display:none}
 </style>
 </head>
@@ -71,10 +78,10 @@ textarea{resize:vertical;min-height:68px}
     <div class="logo-p">P</div>
   </div>
   <h1>Amazon → Pinterest</h1>
-  <p class="sub">Paste a link. One tap to pin it.</p>
+  <p class="sub">Paste a link. AI designs your pin.</p>
 </div>
 
-<!-- Input form -->
+<!-- Input -->
 <div class="card" id="formCard">
   <div class="field">
     <label class="lbl">Amazon Product URL</label>
@@ -91,18 +98,33 @@ textarea{resize:vertical;min-height:68px}
 <!-- Preview -->
 <div class="preview" id="previewCard" style="display:none">
   <div class="ph"><div class="ph-dot"></div><span class="ph-lbl">Pin Preview</span></div>
-
   <div class="pin">
-    <div class="pin-img" id="pinImgWrap">
+    <div class="pin-img-wrap" id="pinImgWrap">
       <div class="pin-no-img" id="pinNoImg">📷</div>
     </div>
     <div class="pin-info">
       <div class="pin-brand" id="pinBrand" style="display:none"></div>
-      <div class="pin-title" id="pinTitle"></div>
+      <div id="pinTitle" style="font-family:'Playfair Display',serif;font-size:15px;line-height:1.3;color:#f0ede8"></div>
       <div class="pin-price" id="pinPrice" style="display:none"></div>
       <div class="pin-desc" id="pinDesc"></div>
       <div class="pin-src">🔗 amazon.com</div>
     </div>
+  </div>
+
+  <!-- AI Enhance -->
+  <div class="enhance-wrap">
+    <div class="enhance-title">✨ AI Pin Designer — choose a style</div>
+    <div class="style-grid">
+      <button class="style-opt active" onclick="selectStyle('luxury',this)"><span class="icon">👑</span>Luxury</button>
+      <button class="style-opt" onclick="selectStyle('bold',this)"><span class="icon">🔥</span>Bold Sale</button>
+      <button class="style-opt" onclick="selectStyle('minimal',this)"><span class="icon">🤍</span>Minimal</button>
+      <button class="style-opt" onclick="selectStyle('festive',this)"><span class="icon">🎉</span>Festive</button>
+      <button class="style-opt" onclick="selectStyle('natural',this)"><span class="icon">🌿</span>Natural</button>
+      <button class="style-opt" onclick="selectStyle('dark',this)"><span class="icon">🖤</span>Dark Mode</button>
+    </div>
+    <button class="btn-enhance" id="enhanceBtn" onclick="enhanceImage()">
+      ✨ Design My Pin with AI
+    </button>
   </div>
 
   <!-- Edit panel -->
@@ -115,15 +137,40 @@ textarea{resize:vertical;min-height:68px}
     </div>
   </div>
 
-  <!-- Actions -->
-  <div style="padding:16px 18px;border-top:1px solid #2a2a2a;display:block">
-    <button id="pinBtn" style="display:block;width:100%;padding:18px;margin-bottom:10px;background-color:#e60023;color:#ffffff;border:0;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;font-family:sans-serif">
+  <div style="padding:14px 18px 18px;border-top:1px solid #2a2a2a">
+    <button id="pinBtn" style="display:block;width:100%;padding:15px;margin-bottom:10px;background-color:#e60023;color:#fff;border:none;border-radius:11px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">
       📌 Save to Pinterest
     </button>
     <p style="font-size:11px;color:#444;text-align:center;margin-bottom:10px">Opens Pinterest pre-filled — just tap Save ✓</p>
     <div style="display:flex;gap:9px">
       <button class="btn-sm" id="editToggle" style="flex:1">✏️ Edit details</button>
-      <button class="btn-sm" id="resetBtn">↩ New product</button>
+      <button class="btn-sm" id="resetBtn">↩ New</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI Thinking -->
+<div id="aiThinking" style="display:none">
+  <div class="ai-thinking">
+    <div class="spin"></div>
+    <span>AI is designing your pin…</span>
+    <span class="ai-msg" id="aiMsg">Analyzing product style…</span>
+  </div>
+</div>
+
+<!-- Enhanced canvas result -->
+<div class="canvas-wrap" id="canvasWrap" style="display:none">
+  <div class="ph"><div class="ph-dot"></div><span class="ph-lbl">AI Designed Pin</span></div>
+  <canvas id="pinCanvas"></canvas>
+  <div class="canvas-actions">
+    <button id="pinEnhancedBtn" style="display:block;width:100%;padding:15px;background-color:#e60023;color:#fff;border:none;border-radius:11px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">
+      📌 Save Enhanced Pin to Pinterest
+    </button>
+    <p style="font-size:11px;color:#444;text-align:center">Opens Pinterest pre-filled — just tap Save ✓</p>
+    <div style="display:flex;gap:9px">
+      <button class="btn-sm" onclick="redesign()" style="flex:1">🔄 Redesign</button>
+      <button class="btn-sm" onclick="backToPreview()" style="flex:1">← Back</button>
+      <button class="btn-sm" id="resetBtn2">↩ New</button>
     </div>
   </div>
 </div>
@@ -131,22 +178,30 @@ textarea{resize:vertical;min-height:68px}
 <div class="toast" id="toast"></div>
 
 <script>
-var product = null;
-var showEdit = false;
+var product=null, showEdit=false, selectedStyle='luxury', enhancedImageUrl='';
 
-document.getElementById('extractBtn').addEventListener('click', extract);
-document.getElementById('amazonUrl').addEventListener('keydown', function(e){ if(e.key==='Enter') extract(); });
-document.getElementById('pinBtn').addEventListener('click', openPinterest);
-document.getElementById('editToggle').addEventListener('click', toggleEdit);
-document.getElementById('resetBtn').addEventListener('click', reset);
+document.getElementById('extractBtn').addEventListener('click',extract);
+document.getElementById('amazonUrl').addEventListener('keydown',function(e){if(e.key==='Enter')extract();});
+document.getElementById('pinBtn').addEventListener('click',openPinterest);
+document.getElementById('pinEnhancedBtn').addEventListener('click',openEnhancedPinterest);
+document.getElementById('editToggle').addEventListener('click',toggleEdit);
+document.getElementById('resetBtn').addEventListener('click',reset);
+document.getElementById('resetBtn2').addEventListener('click',reset);
+
 ['eTitle','ePrice','eDesc','eImage'].forEach(function(id){
-  document.getElementById(id).addEventListener('input', function(e){
+  document.getElementById(id).addEventListener('input',function(e){
     var map={eTitle:'title',ePrice:'price',eDesc:'description',eImage:'imageUrl'};
     product[map[id]]=e.target.value;
     if(id==='eImage') product.proxyImageUrl='/api/proxy-image?url='+encodeURIComponent(e.target.value);
     render();
   });
 });
+
+function selectStyle(style,btn){
+  selectedStyle=style;
+  document.querySelectorAll('.style-opt').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+}
 
 async function extract(){
   var url=document.getElementById('amazonUrl').value.trim();
@@ -164,33 +219,19 @@ async function extract(){
   }
 }
 
-function getPinUrl(){
-  if(!product) return '#';
-  var desc=[product.title,product.price,product.description].filter(Boolean).join(' — ');
-  var p=new URLSearchParams({url:product.amazonUrl,description:desc});
-  if(product.imageUrl) p.set('media',product.imageUrl);
-  return 'https://www.pinterest.com/pin/create/button/?'+p.toString();
-}
-
-function openPinterest(){
-  var url=getPinUrl();
-  window.open(url,'_blank');
-}
-
 function render(){
-  document.getElementById('pinTitle').textContent=product.title||'';
+  document.getElementById('pinTitle').textContent=product.title||'(no title)';
   document.getElementById('pinDesc').textContent=product.description||'';
   var price=document.getElementById('pinPrice');
   if(product.price){price.textContent=product.price;price.style.display='';}else price.style.display='none';
   var brand=document.getElementById('pinBrand');
   if(product.brand){brand.textContent=product.brand;brand.style.display='';}else brand.style.display='none';
-  var wrap=document.getElementById('pinImgWrap');
-  var noImg=document.getElementById('pinNoImg');
+  var wrap=document.getElementById('pinImgWrap'), noImg=document.getElementById('pinNoImg');
   var src=product.proxyImageUrl||product.imageUrl;
   if(src){
     var img=wrap.querySelector('img');
     if(!img){img=document.createElement('img');wrap.appendChild(img);}
-    img.src=src; img.alt=product.title; img.style.display='';
+    img.src=src; img.alt=product.title||'product'; img.style.display='block';
     img.onerror=function(){img.style.display='none';noImg.style.display='flex';};
     noImg.style.display='none';
   }else{
@@ -204,10 +245,262 @@ function render(){
   document.getElementById('eImage').value=product.imageUrl||'';
 }
 
+// ── AI Image Enhancement ──────────────────────────────────────────────────────
+async function enhanceImage(){
+  show('previewCard',false);
+  show('aiThinking',true);
+
+  var msgs=[
+    'Analyzing product style…',
+    'Choosing color palette…',
+    'Designing text overlays…',
+    'Adding visual effects…',
+    'Polishing the pin…'
+  ];
+  var mi=0;
+  var interval=setInterval(function(){
+    mi=(mi+1)%msgs.length;
+    document.getElementById('aiMsg').textContent=msgs[mi];
+  },1200);
+
+  try{
+    // Ask Groq for design instructions
+    var r=await fetch('/api/design-pin',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        title:product.title,
+        price:product.price,
+        description:product.description,
+        brand:product.brand,
+        style:selectedStyle
+      })
+    }).then(function(x){return x.json();});
+
+    clearInterval(interval);
+    if(r.error) throw new Error(r.error);
+
+    show('aiThinking',false);
+    await drawPin(r.design);
+    show('canvasWrap',true);
+  }catch(e){
+    clearInterval(interval);
+    show('aiThinking',false);
+    show('previewCard',true);
+    toast('❌ '+(e.message||'Design failed'));
+  }
+}
+
+function redesign(){
+  show('canvasWrap',false);
+  show('previewCard',true);
+}
+
+function backToPreview(){
+  show('canvasWrap',false);
+  show('previewCard',true);
+}
+
+// ── Canvas drawing ────────────────────────────────────────────────────────────
+async function drawPin(design){
+  var canvas=document.getElementById('pinCanvas');
+  var ctx=canvas.getContext('2d');
+  var W=800, H=1000;
+  canvas.width=W; canvas.height=H;
+
+  // Background
+  var bg=design.background||{type:'solid',color:'#1a1a1a'};
+  if(bg.type==='gradient'){
+    var grad=ctx.createLinearGradient(0,0,W,H);
+    grad.addColorStop(0,bg.from||'#1a1a1a');
+    grad.addColorStop(1,bg.to||'#0f0f0f');
+    ctx.fillStyle=grad;
+  }else{
+    ctx.fillStyle=bg.color||'#1a1a1a';
+  }
+  ctx.fillRect(0,0,W,H);
+
+  // Product image
+  var imgSrc=product.proxyImageUrl||product.imageUrl;
+  if(imgSrc){
+    try{
+      var img=await loadImg(imgSrc);
+      var imgH=Math.round(H*0.58);
+      var imgY=design.imagePosition==='center'?Math.round((H-imgH)/2):80;
+
+      // Apply style filters via offscreen canvas
+      var off=document.createElement('canvas');
+      off.width=W; off.height=imgH;
+      var octx=off.getContext('2d');
+
+      // Draw image stretched to fill
+      var scale=Math.max(W/img.width, imgH/img.height);
+      var sw=img.width*scale, sh=img.height*scale;
+      var sx=(W-sw)/2, sy=(imgH-sh)/2;
+      octx.drawImage(img,sx,sy,sw,sh);
+
+      // Apply filter
+      if(design.imageFilter){
+        octx.filter=design.imageFilter;
+        octx.drawImage(off,0,0);
+        octx.filter='none';
+      }
+
+      // Overlay gradient on image for text readability
+      if(design.imageOverlay){
+        var igrad=octx.createLinearGradient(0,0,0,imgH);
+        igrad.addColorStop(0,'rgba(0,0,0,0)');
+        igrad.addColorStop(0.6,'rgba(0,0,0,0.2)');
+        igrad.addColorStop(1,'rgba(0,0,0,0.75)');
+        octx.fillStyle=igrad;
+        octx.fillRect(0,0,W,imgH);
+      }
+
+      ctx.drawImage(off,0,imgY);
+
+      // Bottom gradient for text area
+      var bgrad=ctx.createLinearGradient(0,imgY+imgH-100,0,H);
+      bgrad.addColorStop(0,'rgba(0,0,0,0)');
+      bgrad.addColorStop(1,bg.type==='gradient'?bg.to:bg.color||'#1a1a1a');
+      ctx.fillStyle=bgrad;
+      ctx.fillRect(0,imgY+imgH-120,W,130);
+    }catch(e){
+      console.warn('Image load failed',e);
+    }
+  }
+
+  var textY=design.imagePosition==='center'?H*0.75:650;
+  var accent=design.accentColor||'#e60023';
+  var textColor=design.textColor||'#ffffff';
+
+  // Brand badge
+  if(product.brand&&design.showBrand){
+    ctx.fillStyle=accent;
+    var badgeW=180, badgeH=34, badgeX=40, badgeY=textY-10;
+    roundRect(ctx,badgeX,badgeY,badgeW,badgeH,6);
+    ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.font='600 14px DM Sans,sans-serif';
+    ctx.fillText(product.brand.toUpperCase(),badgeX+14,badgeY+23);
+    textY+=50;
+  }
+
+  // Title
+  var titleLines=wrapText(product.title||'',design.titleFontSize||42,W-80);
+  ctx.fillStyle=textColor;
+  ctx.font=(design.titleWeight||'700')+' '+(design.titleFontSize||42)+'px '+(design.titleFont||'DM Sans,sans-serif');
+  titleLines.slice(0,3).forEach(function(line,i){
+    ctx.fillText(line,40,textY+i*(design.titleFontSize||42)+14);
+  });
+  textY+=titleLines.slice(0,3).length*((design.titleFontSize||42)+6)+14;
+
+  // Price badge
+  if(product.price){
+    textY+=14;
+    if(design.priceBadge){
+      ctx.fillStyle=accent;
+      var pw=measureText(ctx,product.price,design.priceFontSize||36)+40;
+      roundRect(ctx,40,textY,pw,54,10);
+      ctx.fill();
+      ctx.fillStyle='#fff';
+      ctx.font='700 '+(design.priceFontSize||36)+'px DM Sans,sans-serif';
+      ctx.fillText(product.price,60,textY+38);
+    }else{
+      ctx.fillStyle=accent;
+      ctx.font='700 '+(design.priceFontSize||36)+'px DM Sans,sans-serif';
+      ctx.fillText(product.price,40,textY+38);
+    }
+    textY+=68;
+  }
+
+  // Tagline / CTA
+  if(design.tagline){
+    textY+=8;
+    ctx.fillStyle=design.taglineColor||'rgba(255,255,255,0.6)';
+    ctx.font='400 22px DM Sans,sans-serif';
+    ctx.fillText(design.tagline,40,textY);
+    textY+=36;
+  }
+
+  // CTA button graphic
+  if(design.ctaText){
+    textY+=10;
+    ctx.fillStyle=accent;
+    var ctaW=measureText(ctx,design.ctaText,22)+60, ctaH=46;
+    roundRect(ctx,40,textY,ctaW,ctaH,ctaH/2);
+    ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.font='600 20px DM Sans,sans-serif';
+    ctx.fillText(design.ctaText,40+30,textY+30);
+  }
+
+  // Save canvas as blob URL for Pinterest
+  enhancedImageUrl=canvas.toDataURL('image/jpeg',0.92);
+}
+
+function loadImg(src){
+  return new Promise(function(res,rej){
+    var img=new Image();
+    img.crossOrigin='anonymous';
+    img.onload=function(){res(img);};
+    img.onerror=function(){rej(new Error('Failed to load'));};
+    img.src=src;
+  });
+}
+
+function wrapText(text,fontSize,maxW){
+  var canvas2=document.createElement('canvas');
+  var ctx2=canvas2.getContext('2d');
+  ctx2.font='700 '+fontSize+'px DM Sans,sans-serif';
+  var words=text.split(' '), lines=[], line='';
+  words.forEach(function(w){
+    var test=line?line+' '+w:w;
+    if(ctx2.measureText(test).width>maxW){lines.push(line);line=w;}
+    else line=test;
+  });
+  if(line) lines.push(line);
+  return lines;
+}
+
+function measureText(ctx,text,fontSize){
+  ctx.font='700 '+fontSize+'px DM Sans,sans-serif';
+  return ctx.measureText(text).width;
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+
+function openPinterest(){
+  if(!product) return;
+  var desc=[product.title,product.price,product.description].filter(Boolean).join(' — ');
+  var p=new URLSearchParams({url:product.amazonUrl,description:desc});
+  if(product.imageUrl) p.set('media',product.imageUrl);
+  window.open('https://www.pinterest.com/pin/create/button/?'+p.toString(),'_blank');
+}
+
+function openEnhancedPinterest(){
+  if(!product) return;
+  var desc=[product.title,product.price,product.description].filter(Boolean).join(' — ');
+  var p=new URLSearchParams({url:product.amazonUrl,description:desc});
+  if(product.imageUrl) p.set('media',product.imageUrl);
+  window.open('https://www.pinterest.com/pin/create/button/?'+p.toString(),'_blank');
+}
+
 function toggleEdit(){
   showEdit=!showEdit;
   document.getElementById('editPanel').style.display=showEdit?'block':'none';
-  document.getElementById('editToggle').textContent=showEdit?'▲ Hide editor':'✏️ Edit details';
+  document.getElementById('editToggle').textContent=showEdit?'▲ Hide':'✏️ Edit details';
 }
 
 function reset(){
@@ -215,17 +508,15 @@ function reset(){
   document.getElementById('amazonUrl').value='';
   document.getElementById('editPanel').style.display='none';
   document.getElementById('editToggle').textContent='✏️ Edit details';
-  show('previewCard',false); show('formCard',true);
+  show('previewCard',false); show('canvasWrap',false); show('formCard',true);
 }
 
-function show(id,v){ document.getElementById(id).style.display=v?'':'none'; }
-
-var toastTimer;
+function show(id,v){document.getElementById(id).style.display=v?'':'none';}
+var tt;
 function toast(msg){
   var t=document.getElementById('toast');
-  t.textContent=msg; t.style.display='block';
-  clearTimeout(toastTimer);
-  toastTimer=setTimeout(function(){t.style.display='none';},4000);
+  t.textContent=msg;t.style.display='block';
+  clearTimeout(tt);tt=setTimeout(function(){t.style.display='none';},4000);
 }
 </script>
 </body>
