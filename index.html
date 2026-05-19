@@ -340,7 +340,7 @@ async function openEnhancedPinterest(){
     var r=await fetch('/api/upload-image',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({base64:canvasDataUrl})}).then(function(x){return x.json();});
     if(r.error) throw new Error(r.error);
     var desc=[product.title,product.price,'Shop now on Amazon'].filter(Boolean).join(' — ');
-    var p=new URLSearchParams({url:product.amazonUrl,description:desc,media:r.url});
+    var p=new URLSearchParams({url:product.amazonUrl,title:product.title||'',description:desc,media:r.url});
     window.open('https://www.pinterest.com/pin/create/button/?'+p.toString(),'_blank');
   }catch(e){
     toast('❌ Upload failed: '+(e.message||'Check IMGBB_API_KEY in Render'));
@@ -351,7 +351,7 @@ async function openEnhancedPinterest(){
 
 function openOriginalPinterest(){
   var desc=[product.title,product.price,product.description].filter(Boolean).join(' — ');
-  var p=new URLSearchParams({url:product.amazonUrl,description:desc});
+  var p=new URLSearchParams({url:product.amazonUrl,title:product.title||'',description:desc});
   if(product.imageUrl) p.set('media',product.imageUrl);
   window.open('https://www.pinterest.com/pin/create/button/?'+p.toString(),'_blank');
 }
