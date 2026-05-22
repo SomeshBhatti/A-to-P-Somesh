@@ -3,149 +3,369 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Amazon → Pinterest</title>
+<title>Amazon → Pinterest Pro</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:#0f0f0f;color:#f0ede8;font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 16px 80px}
-.header{text-align:center;margin-bottom:36px}
-.logo{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px}
-.logo-amz{font-size:12px;font-weight:500;color:#ff9900;letter-spacing:2px;text-transform:uppercase}
-.logo-p{width:34px;height:34px;border-radius:50%;background:#e60023;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;font-family:Georgia,serif}
-h1{font-family:'Playfair Display',serif;font-size:clamp(24px,5vw,36px);font-weight:400;color:#f0ede8}
-.sub{margin-top:6px;color:#555;font-size:13px}
-.card{width:100%;max-width:560px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:14px;padding:22px;margin-bottom:16px}
-.lbl{display:block;font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:#555;margin-bottom:7px}
-input,textarea{width:100%;background:#111;border:1px solid #2a2a2a;border-radius:9px;padding:12px 13px;font-family:'DM Sans',sans-serif;font-size:14px;color:#f0ede8;outline:none}
-input:focus,textarea:focus{border-color:#e60023}
-input::placeholder{color:#444}
-textarea{resize:vertical;min-height:68px}
+:root{--bg:#0a0a0a;--s1:#141414;--s2:#1e1e1e;--bdr:#2a2a2a;--tx:#f0ede8;--mt:#666;--sub:#444;--red:#e60023;--rdd:#cc0020;--amz:#ff9900;--grn:#22c55e}
+body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:0 0 80px}
+
+/* ── Top bar ── */
+.topbar{width:100%;max-width:620px;display:flex;align-items:center;justify-content:space-between;padding:18px 16px 0}
+.topbar-logo{display:flex;align-items:center;gap:8px}
+.logo-p{width:30px;height:30px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;font-family:Georgia,serif}
+.topbar-title{font-family:'Playfair Display',serif;font-size:16px;color:var(--tx)}
+.topbar-actions{display:flex;gap:8px}
+.icon-btn{padding:7px 12px;background:var(--s2);border:1px solid var(--bdr);border-radius:8px;color:var(--mt);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;white-space:nowrap}
+.icon-btn:hover{border-color:var(--sub);color:#aaa}
+.icon-btn.active{border-color:var(--red);color:var(--red)}
+
+/* ── Panels ── */
+.panel{width:100%;max-width:620px;padding:0 16px;margin-top:16px}
+
+/* ── Cards ── */
+.card{background:var(--s1);border:1px solid var(--bdr);border-radius:14px;padding:20px;margin-bottom:14px}
+.lbl{display:block;font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--mt);margin-bottom:7px}
+input,textarea,select{width:100%;background:#0f0f0f;border:1px solid var(--bdr);border-radius:9px;padding:11px 13px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--tx);outline:none;transition:border-color 0.2s}
+input:focus,textarea:focus,select:focus{border-color:var(--red)}
+input::placeholder,textarea::placeholder{color:var(--sub)}
+textarea{resize:vertical}
+select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+select option{background:#141414}
 .field{margin-bottom:13px}
-.btn-red{width:100%;padding:14px;background:#e60023;color:#fff;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px}
-.btn-red:hover{background:#cc0020}
-.preview{width:100%;max-width:560px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:14px;overflow:hidden;margin-bottom:16px;animation:up 0.3s ease}
+.row{display:flex;gap:9px}
+.row .field{flex:1}
+
+/* ── Buttons ── */
+.btn-red{width:100%;padding:14px;background:var(--red);color:#fff;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:background 0.2s}
+.btn-red:hover{background:var(--rdd)}
+.btn-red:disabled{opacity:0.4;cursor:not-allowed}
+.btn-outline{padding:10px 14px;background:transparent;color:var(--mt);border:1px solid var(--bdr);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all 0.2s}
+.btn-outline:hover{border-color:var(--sub);color:#aaa}
+.btn-green{padding:10px 16px;background:#166534;color:#86efac;border:1px solid #166534;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer}
+
+/* ── Mode tabs ── */
+.mode-tabs{display:flex;gap:0;background:var(--s2);border:1px solid var(--bdr);border-radius:10px;overflow:hidden;margin-bottom:16px}
+.mode-tab{flex:1;padding:10px;background:transparent;border:none;color:var(--mt);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s}
+.mode-tab.active{background:var(--red);color:#fff}
+
+/* ── Preview ── */
+.preview-card{background:var(--s1);border:1px solid var(--bdr);border-radius:14px;overflow:hidden;margin-bottom:14px;animation:up 0.3s ease}
 @keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-.ph{padding:13px 18px;border-bottom:1px solid #2a2a2a;display:flex;align-items:center;gap:7px}
-.ph-dot{width:7px;height:7px;border-radius:50%;background:#e60023}
-.ph-lbl{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#555;font-weight:500}
-.pin{display:flex}
-.pin-img-wrap{width:170px;flex-shrink:0;background:#111;overflow:hidden;min-height:200px}
-.pin-img-wrap img{width:100%;height:100%;object-fit:cover;display:block}
-.pin-no-img{width:100%;height:200px;display:flex;align-items:center;justify-content:center;color:#333;font-size:28px}
-.pin-info{flex:1;padding:18px;display:flex;flex-direction:column;gap:7px}
-.pin-brand{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#444}
-.pin-price{font-size:20px;font-weight:600;color:#e60023}
-.pin-desc{font-size:12px;color:#666;line-height:1.6}
-.pin-src{font-size:11px;color:#444;margin-top:auto}
-.enhance-wrap{padding:14px 18px;border-top:1px solid #2a2a2a;background:#111}
-.enhance-title{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#555;margin-bottom:12px;font-weight:500}
+.ph{padding:12px 18px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:7px}
+.ph-dot{width:7px;height:7px;border-radius:50%;background:var(--red)}
+.ph-lbl{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mt);font-weight:600}
+.ph-right{margin-left:auto;font-size:11px;color:var(--sub)}
+.pin-layout{display:flex}
+.pin-img-col{width:160px;flex-shrink:0;background:#0f0f0f;overflow:hidden;min-height:190px}
+.pin-img-col img{width:100%;height:100%;object-fit:cover;display:block}
+.pin-no-img{width:100%;height:190px;display:flex;align-items:center;justify-content:center;color:var(--bdr);font-size:24px}
+.pin-info{flex:1;padding:16px;display:flex;flex-direction:column;gap:6px}
+.pin-brand{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--sub)}
+.pin-ttl{font-family:'Playfair Display',serif;font-size:14px;line-height:1.35;color:var(--tx)}
+.pin-price{font-size:18px;font-weight:700;color:var(--red)}
+.pin-desc{font-size:11px;color:var(--mt);line-height:1.6}
+.pin-tags{font-size:10px;color:#3b82f6;margin-top:2px;line-height:1.6}
+.pin-src{font-size:10px;color:var(--sub);margin-top:auto}
+
+/* ── Style grid ── */
 .style-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
-.style-opt{padding:10px 6px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:12px;color:#888;cursor:pointer;text-align:center;transition:all 0.2s}
-.style-opt.active{background:#e60023;border-color:#e60023;color:#fff}
-.style-opt .icon{font-size:18px;display:block;margin-bottom:3px}
-.btn-enhance{width:100%;padding:13px;background:linear-gradient(135deg,#e60023,#ff4d6d);color:#fff;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer}
-.btn-enhance:disabled{opacity:0.5;cursor:not-allowed}
-.edit-wrap{padding:14px 18px;border-top:1px solid #2a2a2a}
-.edit-inner{display:flex;flex-direction:column;gap:11px;padding-top:14px}
-.canvas-wrap{width:100%;max-width:560px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:14px;overflow:hidden;margin-bottom:16px;animation:up 0.3s ease}
-.canvas-wrap canvas{width:100%;height:auto;display:block}
-.loading{display:flex;flex-direction:column;align-items:center;gap:12px;padding:48px 0;color:#555;font-size:13px}
-.spin{width:26px;height:26px;border:2px solid #2a2a2a;border-top-color:#e60023;border-radius:50%;animation:spin 0.7s linear infinite}
+.style-opt{padding:10px 6px;background:var(--s2);border:1px solid var(--bdr);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:11px;color:var(--mt);cursor:pointer;text-align:center;transition:all 0.2s}
+.style-opt .ico{font-size:16px;display:block;margin-bottom:2px}
+.style-opt.active{border-color:var(--red);color:var(--red);background:rgba(230,0,35,0.08)}
+.auto-badge{font-size:9px;background:var(--red);color:#fff;padding:1px 5px;border-radius:4px;margin-left:4px}
+
+/* ── Schedule ── */
+.slot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.slot-btn{padding:10px 6px;background:var(--s2);border:1px solid var(--bdr);border-radius:9px;font-family:'DM Sans',sans-serif;font-size:11px;color:var(--mt);cursor:pointer;text-align:center;transition:all 0.2s}
+.slot-btn.active{border-color:#f59e0b;color:#f59e0b;background:rgba(245,158,11,0.08)}
+.slot-btn .slot-time{font-size:16px;font-weight:700;display:block;margin-bottom:2px}
+
+/* ── Loading ── */
+.loading{display:flex;flex-direction:column;align-items:center;gap:12px;padding:48px 0;color:var(--mt);font-size:13px}
+.spin{width:26px;height:26px;border:2px solid var(--bdr);border-top-color:var(--red);border-radius:50%;animation:spin 0.7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.btn-sm{padding:10px;background:transparent;color:#555;border:1px solid #2a2a2a;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer}
-.btn-sm:hover{border-color:#444;color:#888}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:11px 18px;border-radius:9px;font-size:13px;font-weight:500;z-index:99;white-space:nowrap;border:1px solid #4a1a22;background:#2b0d12;color:#ff6b7a;display:none}
+
+/* ── Canvas wrap ── */
+.canvas-wrap{background:var(--s1);border:1px solid var(--bdr);border-radius:14px;overflow:hidden;margin-bottom:14px;animation:up 0.3s ease}
+.canvas-wrap canvas{width:100%;height:auto;display:block;max-height:70vh;object-fit:contain}
+
+/* ── History ── */
+.hist-item{background:var(--s2);border:1px solid var(--bdr);border-radius:10px;padding:13px;margin-bottom:10px}
+.hist-item-top{display:flex;gap:10px;align-items:flex-start}
+.hist-img{width:44px;height:44px;border-radius:6px;object-fit:cover;background:var(--bdr);flex-shrink:0}
+.hist-info{flex:1;min-width:0}
+.hist-title{font-size:13px;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist-meta{font-size:11px;color:var(--mt);margin-top:3px}
+.hist-price{font-size:13px;font-weight:600;color:var(--red)}
+
+/* ── Queue ── */
+.queue-item{background:var(--s2);border:1px solid var(--bdr);border-radius:10px;padding:13px;margin-bottom:10px;display:flex;gap:10px;align-items:center}
+.queue-time{font-size:22px;font-weight:700;color:#f59e0b;width:60px;flex-shrink:0;text-align:center}
+.queue-info{flex:1;min-width:0}
+.queue-title{font-size:13px;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.queue-meta{font-size:11px;color:var(--mt);margin-top:3px}
+
+/* ── Progress bar ── */
+.progress-wrap{background:var(--bdr);border-radius:4px;height:6px;margin:10px 0;overflow:hidden}
+.progress-bar{height:100%;background:var(--red);border-radius:4px;transition:width 0.3s}
+
+/* ── Settings ── */
+.settings-section{font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--sub);margin:18px 0 10px}
+.board-item{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.board-item input{flex:1}
+.divider{border:none;border-top:1px solid var(--bdr);margin:16px 0}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:11px 18px;border-radius:9px;font-size:13px;font-weight:500;z-index:999;white-space:nowrap;display:none;max-width:90vw;white-space:normal;text-align:center}
+.toast.err{background:#2b0d12;color:#ff6b7a;border:1px solid #4a1a22}
+.toast.ok{background:#0d2b16;color:#4ade80;border:1px solid #166534}
+
+/* ── Bulk results ── */
+.bulk-result{background:var(--s2);border:1px solid var(--bdr);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;gap:10px;align-items:center}
+.bulk-result img{width:42px;height:42px;border-radius:6px;object-fit:cover;background:var(--bdr)}
+.bulk-result-info{flex:1;min-width:0}
+.bulk-result-title{font-size:12px;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bulk-result-price{font-size:12px;color:var(--red);font-weight:600}
+.bulk-result-status{font-size:11px;color:var(--mt);margin-top:2px}
 </style>
 </head>
 <body>
 
-<div class="header">
-  <div class="logo">
-    <span class="logo-amz">Amazon</span>
-    <span style="color:#444;font-size:16px">→</span>
+<!-- Top bar -->
+<div class="topbar">
+  <div class="topbar-logo">
     <div class="logo-p">P</div>
+    <span class="topbar-title">Amazon → Pinterest Pro</span>
   </div>
-  <h1>Amazon → Pinterest</h1>
-  <p class="sub">Paste a link. AI designs your pin.</p>
-</div>
-
-<div class="card" id="formCard">
-  <div class="field">
-    <label class="lbl">Amazon Product URL</label>
-    <input type="text" id="amazonUrl" placeholder="https://www.amazon.in/dp/... or amzn.to/..."/>
-  </div>
-  <button class="btn-red" id="extractBtn">Extract & Preview →</button>
-</div>
-
-<div id="loadingState" style="display:none">
-  <div class="loading"><div class="spin"></div><span>Reading product…</span></div>
-</div>
-
-<div class="preview" id="previewCard" style="display:none">
-  <div class="ph"><div class="ph-dot"></div><span class="ph-lbl">Pin Preview</span></div>
-  <div class="pin">
-    <div class="pin-img-wrap" id="pinImgWrap">
-      <div class="pin-no-img" id="pinNoImg">📷</div>
-    </div>
-    <div class="pin-info">
-      <div class="pin-brand" id="pinBrand" style="display:none"></div>
-      <div id="pinTitle" style="font-family:'Playfair Display',serif;font-size:15px;line-height:1.3;color:#f0ede8;font-weight:400"></div>
-      <div class="pin-price" id="pinPrice" style="display:none"></div>
-      <div class="pin-desc" id="pinDesc"></div>
-      <div class="pin-src">🔗 amazon.com</div>
-    </div>
-  </div>
-
-  <div class="enhance-wrap">
-    <div class="enhance-title">✨ AI Pin Designer — choose a style</div>
-    <div class="style-grid">
-      <button class="style-opt active" onclick="selectStyle('luxury',this)"><span class="icon">👑</span>Luxury</button>
-      <button class="style-opt" onclick="selectStyle('bold',this)"><span class="icon">🔥</span>Bold Sale</button>
-      <button class="style-opt" onclick="selectStyle('minimal',this)"><span class="icon">🤍</span>Minimal</button>
-      <button class="style-opt" onclick="selectStyle('festive',this)"><span class="icon">🎉</span>Festive</button>
-      <button class="style-opt" onclick="selectStyle('natural',this)"><span class="icon">🌿</span>Natural</button>
-      <button class="style-opt" onclick="selectStyle('dark',this)"><span class="icon">🖤</span>Dark</button>
-    </div>
-    <button class="btn-enhance" id="enhanceBtn" onclick="enhanceImage()">✨ Design My Pin with AI</button>
-  </div>
-
-  <div class="edit-wrap" id="editPanel" style="display:none">
-    <div class="edit-inner">
-      <div class="field"><label class="lbl">Title</label><input type="text" id="eTitle"/></div>
-      <div class="field"><label class="lbl">Price</label><input type="text" id="ePrice"/></div>
-      <div class="field"><label class="lbl">Description</label><textarea id="eDesc" rows="3"></textarea></div>
-      <div class="field"><label class="lbl">Image URL</label><input type="text" id="eImage"/></div>
-    </div>
-  </div>
-
-  <div style="padding:14px 18px 18px;border-top:1px solid #2a2a2a">
-    <button id="pinBtn" style="display:block;width:100%;padding:15px;margin-bottom:10px;background-color:#e60023;color:#fff;border:none;border-radius:11px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">📌 Save Original to Pinterest</button>
-    <p style="font-size:11px;color:#444;text-align:center;margin-bottom:10px">Opens Pinterest pre-filled — just tap Save ✓</p>
-    <div style="display:flex;gap:9px">
-      <button class="btn-sm" id="editToggle" style="flex:1">✏️ Edit details</button>
-      <button class="btn-sm" id="resetBtn">↩ New</button>
-    </div>
+  <div class="topbar-actions">
+    <button class="icon-btn" id="btnHistory" onclick="showPanel('history')">📋 History</button>
+    <button class="icon-btn" id="btnQueue" onclick="showPanel('queue')">⏰ Queue</button>
+    <button class="icon-btn" id="btnSettings" onclick="showPanel('settings')">⚙️ Settings</button>
   </div>
 </div>
 
-<!-- AI thinking -->
-<div id="aiThinking" style="display:none">
-  <div class="loading">
-    <div class="spin"></div>
-    <span id="aiMsg">Designing your pin…</span>
+<!-- ═══ MAIN PANEL ═══ -->
+<div class="panel" id="panelMain">
+
+  <!-- Mode tabs -->
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="tabSingle" onclick="switchMode('single')">Single URL</button>
+    <button class="mode-tab" id="tabBulk" onclick="switchMode('bulk')">Bulk / CSV</button>
+  </div>
+
+  <!-- Single mode -->
+  <div id="modeSingle">
+    <div class="card">
+      <div class="field">
+        <label class="lbl">Amazon Product URL</label>
+        <input type="text" id="amazonUrl" placeholder="https://www.amazon.in/dp/... or amzn.to/..."/>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label class="lbl">Post to Board</label>
+          <select id="boardSelect"><option value="">Select board…</option></select>
+        </div>
+      </div>
+      <button class="btn-red" id="extractBtn">Extract & Preview →</button>
+    </div>
+  </div>
+
+  <!-- Bulk mode -->
+  <div id="modeBulk" style="display:none">
+    <div class="card">
+      <div class="field">
+        <label class="lbl">Paste URLs (one per line, max 50)</label>
+        <textarea id="bulkUrls" rows="6" placeholder="https://www.amazon.in/dp/B0ABC...&#10;https://amzn.to/xyz...&#10;https://www.amazon.in/dp/B0DEF..."></textarea>
+      </div>
+      <div class="field" style="margin-top:10px">
+        <label class="lbl">Or upload CSV (needs "url" column)</label>
+        <input type="file" id="csvFile" accept=".csv" style="padding:8px;font-size:13px;color:var(--mt)"/>
+      </div>
+      <div class="row" style="margin-top:4px">
+        <div class="field">
+          <label class="lbl">Post to Board</label>
+          <select id="bulkBoard"><option value="">Select board…</option></select>
+        </div>
+        <div class="field">
+          <label class="lbl">Style</label>
+          <select id="bulkStyle">
+            <option value="auto">Auto detect</option>
+            <option value="luxury">👑 Luxury</option>
+            <option value="bold">🔥 Bold Sale</option>
+            <option value="minimal">🤍 Minimal</option>
+            <option value="festive">🎉 Festive</option>
+            <option value="natural">🌿 Natural</option>
+            <option value="dark">🖤 Dark</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn-red" id="bulkRunBtn" onclick="runBulk()">Process All →</button>
+      <div id="bulkProgress" style="display:none">
+        <div class="progress-wrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+        <div style="font-size:11px;color:var(--mt);text-align:center;margin-top:4px" id="progressLabel">Processing…</div>
+      </div>
+    </div>
+    <div id="bulkResults"></div>
+  </div>
+
+  <!-- Loading -->
+  <div id="loadingState" style="display:none">
+    <div class="loading"><div class="spin"></div><span id="loadMsg">Reading product…</span></div>
+  </div>
+
+  <!-- Preview -->
+  <div class="preview-card" id="previewCard" style="display:none">
+    <div class="ph">
+      <div class="ph-dot"></div>
+      <span class="ph-lbl">Pin Preview</span>
+      <span class="ph-right" id="autoStyleLabel"></span>
+    </div>
+    <div class="pin-layout">
+      <div class="pin-img-col" id="pinImgCol">
+        <div class="pin-no-img" id="pinNoImg">📷</div>
+      </div>
+      <div class="pin-info">
+        <div class="pin-brand" id="pinBrand" style="display:none"></div>
+        <div class="pin-ttl" id="pinTitle"></div>
+        <div class="pin-price" id="pinPrice" style="display:none"></div>
+        <div class="pin-desc" id="pinDesc"></div>
+        <div class="pin-tags" id="pinTags" style="display:none"></div>
+        <div class="pin-src">🔗 amazon.com</div>
+      </div>
+    </div>
+
+    <!-- Style selector -->
+    <div style="padding:14px 18px;border-top:1px solid var(--bdr)">
+      <label class="lbl" style="margin-bottom:10px">✨ AI Pin Style</label>
+      <div class="style-grid">
+        <button class="style-opt" id="sLuxury" onclick="pickStyle('luxury',this)"><span class="ico">👑</span>Luxury</button>
+        <button class="style-opt" id="sBold" onclick="pickStyle('bold',this)"><span class="ico">🔥</span>Bold Sale</button>
+        <button class="style-opt" id="sMinimal" onclick="pickStyle('minimal',this)"><span class="ico">🤍</span>Minimal</button>
+        <button class="style-opt" id="sFestive" onclick="pickStyle('festive',this)"><span class="ico">🎉</span>Festive</button>
+        <button class="style-opt" id="sNatural" onclick="pickStyle('natural',this)"><span class="ico">🌿</span>Natural</button>
+        <button class="style-opt" id="sDark" onclick="pickStyle('dark',this)"><span class="ico">🖤</span>Dark</button>
+      </div>
+      <button class="btn-red" id="designBtn" onclick="startDesign()">✨ Design My Pin with AI →</button>
+    </div>
+
+    <!-- Edit details -->
+    <div style="padding:0 18px 14px;border-top:1px solid var(--bdr);margin-top:4px" id="editWrap" style="display:none">
+      <button class="btn-outline" style="width:100%;margin-top:12px;margin-bottom:12px" id="editToggle" onclick="toggleEdit()">✏️ Edit Details</button>
+      <div id="editFields" style="display:none">
+        <div class="field"><label class="lbl">Title</label><input type="text" id="eTitle"/></div>
+        <div class="field"><label class="lbl">Price</label><input type="text" id="ePrice"/></div>
+        <div class="field"><label class="lbl">Description</label><textarea id="eDesc" rows="2"></textarea></div>
+        <div class="field"><label class="lbl">Image URL</label><input type="text" id="eImage"/></div>
+      </div>
+    </div>
+
+    <!-- Schedule or post -->
+    <div style="padding:14px 18px 18px;border-top:1px solid var(--bdr)">
+      <label class="lbl" style="margin-bottom:10px">⏰ Schedule or Post Now</label>
+      <div class="slot-grid">
+        <button class="slot-btn" id="slot0" onclick="pickSlot(0,this)"><span class="slot-time">7AM</span>Morning IST</button>
+        <button class="slot-btn" id="slot1" onclick="pickSlot(1,this)"><span class="slot-time">2PM</span>Afternoon IST</button>
+        <button class="slot-btn" id="slot2" onclick="pickSlot(2,this)"><span class="slot-time">8PM</span>Peak IST</button>
+      </div>
+      <div style="display:flex;gap:9px">
+        <button class="btn-red" id="postNowBtn" style="flex:1" onclick="postNow()">📌 Post Now to Pinterest</button>
+        <button class="btn-outline" id="scheduleBtn" onclick="schedulePin()" style="flex:1;color:var(--tx);border-color:#f59e0b">⏰ Add to Queue</button>
+      </div>
+      <button class="btn-outline" style="width:100%;margin-top:9px" onclick="reset()">↩ New Product</button>
+    </div>
+  </div>
+
+  <!-- AI Designing -->
+  <div id="aiState" style="display:none">
+    <div class="loading"><div class="spin"></div><span id="aiMsg">Designing your pin…</span></div>
+  </div>
+
+  <!-- Canvas result -->
+  <div class="canvas-wrap" id="canvasWrap" style="display:none">
+    <div class="ph">
+      <div class="ph-dot"></div>
+      <span class="ph-lbl">AI Designed Pin — 1080 × 1920</span>
+    </div>
+    <canvas id="pinCanvas"></canvas>
+    <div style="padding:16px 18px 20px;border-top:1px solid var(--bdr);display:flex;flex-direction:column;gap:9px">
+      <button id="pinEnhancedBtn" style="display:block;width:100%;padding:15px;background:#e60023;color:#fff;border:none;border-radius:11px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif" onclick="openEnhancedPinterest()">
+        📌 Save to Pinterest
+      </button>
+      <div style="display:flex;gap:9px">
+        <button class="btn-outline" style="flex:1" onclick="downloadPin()">⬇️ Download PNG</button>
+        <button class="btn-outline" style="flex:1" onclick="backToPreview()">← Redesign</button>
+        <button class="btn-outline" onclick="reset()">↩ New</button>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- Canvas result -->
-<div class="canvas-wrap" id="canvasWrap" style="display:none">
-  <div class="ph"><div class="ph-dot"></div><span class="ph-lbl">AI Designed Pin</span></div>
-  <canvas id="pinCanvas"></canvas>
-  <div style="padding:16px 18px 20px;border-top:1px solid #2a2a2a;display:flex;flex-direction:column;gap:10px">
-    <button id="pinEnhancedBtn" style="display:block;width:100%;padding:15px;background-color:#e60023;color:#fff;border:none;border-radius:11px;font-size:15px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">📌 Save Enhanced Pin to Pinterest</button>
-    <p style="font-size:11px;color:#444;text-align:center">Uploading designed image → opening Pinterest…</p>
-    <div style="display:flex;gap:9px">
-      <button class="btn-sm" onclick="backToPreview()" style="flex:1">← Redesign</button>
-      <button class="btn-sm" id="resetBtn2">↩ New product</button>
+<!-- ═══ HISTORY PANEL ═══ -->
+<div class="panel" id="panelHistory" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <span style="font-family:'Playfair Display',serif;font-size:18px">Pin History</span>
+    <div style="display:flex;gap:8px">
+      <button class="btn-green" onclick="exportHistoryCSV()">⬇️ Export CSV</button>
+      <button class="btn-outline" onclick="showPanel('main')">← Back</button>
+    </div>
+  </div>
+  <div id="historyList"><div style="color:var(--mt);font-size:13px;text-align:center;padding:40px 0">No pins posted yet.</div></div>
+</div>
+
+<!-- ═══ QUEUE PANEL ═══ -->
+<div class="panel" id="panelQueue" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <span style="font-family:'Playfair Display',serif;font-size:18px">Scheduled Queue</span>
+    <button class="btn-outline" onclick="showPanel('main')">← Back</button>
+  </div>
+  <div id="queueList"><div style="color:var(--mt);font-size:13px;text-align:center;padding:40px 0">No pins scheduled.</div></div>
+</div>
+
+<!-- ═══ SETTINGS PANEL ═══ -->
+<div class="panel" id="panelSettings" style="display:none">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+    <span style="font-family:'Playfair Display',serif;font-size:18px">Settings</span>
+    <button class="btn-outline" onclick="saveSettings();showPanel('main')">Save & Close</button>
+  </div>
+
+  <div class="card">
+    <div class="settings-section">Amazon Affiliate</div>
+    <div class="field">
+      <label class="lbl">Your Associate Tag</label>
+      <input type="text" id="sAffTag" placeholder="yourtag-21"/>
+    </div>
+    <div style="font-size:11px;color:var(--mt)">Auto-appended to every Amazon link: ?tag=yourtag-21</div>
+
+    <hr class="divider"/>
+    <div class="settings-section">API Keys</div>
+    <div class="field">
+      <label class="lbl">Groq API Key (console.groq.com — free)</label>
+      <input type="password" id="sGroqKey" placeholder="gsk_..."/>
+    </div>
+    <div class="field">
+      <label class="lbl">imgbb API Key (imgbb.com — free, for pin upload)</label>
+      <input type="password" id="sImgbbKey" placeholder="your imgbb key"/>
+    </div>
+
+    <hr class="divider"/>
+    <div class="settings-section">Pinterest Boards</div>
+    <div id="boardsList"></div>
+    <button class="btn-outline" style="width:100%;margin-top:8px" onclick="addBoard()">+ Add Board</button>
+
+    <hr class="divider"/>
+    <div class="settings-section">Defaults</div>
+    <div class="field">
+      <label class="lbl">Default Pin Style</label>
+      <select id="sDefaultStyle">
+        <option value="auto">Auto detect from product</option>
+        <option value="luxury">👑 Luxury</option>
+        <option value="bold">🔥 Bold Sale</option>
+        <option value="minimal">🤍 Minimal</option>
+        <option value="festive">🎉 Festive</option>
+        <option value="natural">🌿 Natural</option>
+        <option value="dark">🖤 Dark</option>
+      </select>
     </div>
   </div>
 </div>
@@ -153,245 +373,711 @@ textarea{resize:vertical;min-height:68px}
 <div class="toast" id="toast"></div>
 
 <script>
-var product=null, showEdit=false, selectedStyle='luxury', canvasDataUrl='';
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+var product = null;
+var selectedStyle = 'bold';
+var selectedSlot = -1; // -1 = post now
+var canvasDataUrl = '';
+var currentDesign = null;
+var showEdit = false;
 
-document.getElementById('extractBtn').addEventListener('click',extract);
-document.getElementById('amazonUrl').addEventListener('keydown',function(e){if(e.key==='Enter')extract();});
-document.getElementById('pinBtn').addEventListener('click',openOriginalPinterest);
-document.getElementById('pinEnhancedBtn').addEventListener('click',openEnhancedPinterest);
-document.getElementById('editToggle').addEventListener('click',toggleEdit);
-document.getElementById('resetBtn').addEventListener('click',reset);
-document.getElementById('resetBtn2').addEventListener('click',reset);
-['eTitle','ePrice','eDesc','eImage'].forEach(function(id){
-  document.getElementById(id).addEventListener('input',function(e){
-    var map={eTitle:'title',ePrice:'price',eDesc:'description',eImage:'imageUrl'};
-    product[map[id]]=e.target.value;
-    if(id==='eImage') product.proxyImageUrl='/api/proxy-image?url='+encodeURIComponent(e.target.value);
-    render();
+// ═══════════════════════════════════════════════════════════════
+// SETTINGS (localStorage)
+// ═══════════════════════════════════════════════════════════════
+var SETTINGS_KEY = 'amzpin_settings_v2';
+function loadSettings() {
+  try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; }
+}
+function saveSettings() {
+  var s = loadSettings();
+  s.affTag = document.getElementById('sAffTag').value.trim();
+  s.groqKey = document.getElementById('sGroqKey').value.trim();
+  s.imgbbKey = document.getElementById('sImgbbKey').value.trim();
+  s.defaultStyle = document.getElementById('sDefaultStyle').value;
+  s.boards = [];
+  document.querySelectorAll('.board-input').forEach(function(inp) {
+    var v = inp.value.trim();
+    if (v) s.boards.push(v);
+  });
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+  populateBoards();
+  toast('✓ Settings saved', 'ok');
+}
+function populateBoards() {
+  var s = loadSettings();
+  var boards = s.boards || [];
+  var selectors = ['boardSelect','bulkBoard'];
+  selectors.forEach(function(id) {
+    var sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Select board…</option>';
+    boards.forEach(function(b) {
+      sel.innerHTML += '<option value="'+b+'">'+b+'</option>';
+    });
+  });
+}
+function initSettings() {
+  var s = loadSettings();
+  document.getElementById('sAffTag').value = s.affTag || '';
+  document.getElementById('sGroqKey').value = s.groqKey || '';
+  document.getElementById('sImgbbKey').value = s.imgbbKey || '';
+  document.getElementById('sDefaultStyle').value = s.defaultStyle || 'auto';
+  renderBoardsList(s.boards || []);
+  populateBoards();
+}
+function renderBoardsList(boards) {
+  var el = document.getElementById('boardsList');
+  el.innerHTML = '';
+  boards.forEach(function(b, i) {
+    el.innerHTML += '<div class="board-item"><input class="board-input" type="text" value="'+b+'" placeholder="Board name e.g. Home Decor"/><button class="btn-outline" onclick="removeBoard('+i+')">✕</button></div>';
+  });
+  if (!boards.length) el.innerHTML = '<div style="font-size:12px;color:var(--mt)">No boards added yet.</div>';
+}
+function addBoard() {
+  var s = loadSettings();
+  var boards = s.boards || [];
+  boards.push('');
+  renderBoardsList(boards);
+}
+function removeBoard(i) {
+  var s = loadSettings();
+  var boards = s.boards || [];
+  boards.splice(i, 1);
+  s.boards = boards;
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+  renderBoardsList(boards);
+  populateBoards();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AFFILIATE TAG INJECT
+// ═══════════════════════════════════════════════════════════════
+function injectAffiliate(url) {
+  var tag = (loadSettings().affTag || '').trim();
+  if (!tag) return url;
+  try {
+    var u = new URL(url);
+    u.searchParams.set('tag', tag);
+    return u.toString();
+  } catch { return url + (url.includes('?') ? '&' : '?') + 'tag=' + tag; }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUTO STYLE DETECTION
+// ═══════════════════════════════════════════════════════════════
+function detectStyle(title) {
+  var s = loadSettings();
+  if (s.defaultStyle && s.defaultStyle !== 'auto') return s.defaultStyle;
+  var t = (title || '').toLowerCase();
+  if (/phone|mobile|laptop|tablet|earphone|earbuds|speaker|camera|cable|charger|tech|electronic|gadget|smart|wifi|bluetooth/.test(t)) return 'dark';
+  if (/kitchen|cook|pan|pot|mixer|grinder|pressure|cooker|masala|spice|vessel|tawa|kadai/.test(t)) return 'natural';
+  if (/sale|deal|offer|discount|budget|affordable|cheap|percent|off|combo/.test(t)) return 'bold';
+  if (/gold|silver|diamond|pearl|luxury|premium|leather|silk|cashmere|designer|branded|watch|perfume/.test(t)) return 'luxury';
+  if (/diwali|holi|festival|wedding|party|gift|christmas|eid|celebration|rakhi|navratri/.test(t)) return 'festive';
+  if (/plant|organic|eco|natural|herbal|green|wood|bamboo|cotton|linen|handmade|artisan/.test(t)) return 'natural';
+  if (/fitness|gym|yoga|sport|running|protein|supplement|exercise|weight|dumbbell/.test(t)) return 'bold';
+  return 'bold';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PANELS
+// ═══════════════════════════════════════════════════════════════
+function showPanel(name) {
+  ['panelMain','panelHistory','panelQueue','panelSettings'].forEach(function(id) {
+    document.getElementById(id).style.display = 'none';
+  });
+  ['btnHistory','btnQueue','btnSettings'].forEach(function(id) {
+    document.getElementById(id).classList.remove('active');
+  });
+  document.getElementById('panel' + name.charAt(0).toUpperCase() + name.slice(1)).style.display = '';
+  if (name === 'history') { renderHistory(); document.getElementById('btnHistory').classList.add('active'); }
+  if (name === 'queue') { renderQueue(); document.getElementById('btnQueue').classList.add('active'); }
+  if (name === 'settings') { initSettings(); document.getElementById('btnSettings').classList.add('active'); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EXTRACT
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('extractBtn').addEventListener('click', extractSingle);
+document.getElementById('amazonUrl').addEventListener('keydown', function(e) { if (e.key === 'Enter') extractSingle(); });
+
+async function extractSingle() {
+  var url = document.getElementById('amazonUrl').value.trim();
+  if (!url) return;
+  show('modeSingle', false);
+  show('loadingState', true);
+  document.getElementById('loadMsg').textContent = 'Reading product…';
+  try {
+    var p = await extractProduct(url);
+    product = p;
+    renderPreview();
+    show('loadingState', false);
+    show('modeSingle', false);
+    show('previewCard', true);
+  } catch(e) {
+    show('loadingState', false);
+    show('modeSingle', true);
+    toast('❌ ' + (e.message || 'Could not extract'), 'err');
+  }
+}
+
+async function extractProduct(url) {
+  var s = loadSettings();
+  var r = await fetch('/api/extract', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amazonUrl: url, groqKey: s.groqKey || '' })
+  }).then(function(x) { return x.json(); });
+  if (r.error) throw new Error(r.error);
+  r.product.affiliateUrl = injectAffiliate(url);
+  r.product.originalUrl = url;
+  return r.product;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER PREVIEW
+// ═══════════════════════════════════════════════════════════════
+function renderPreview() {
+  document.getElementById('pinTitle').textContent = product.title || '(no title)';
+  document.getElementById('pinDesc').textContent = product.description || '';
+  var price = document.getElementById('pinPrice');
+  if (product.price) { price.textContent = product.price; price.style.display = ''; } else price.style.display = 'none';
+  var brand = document.getElementById('pinBrand');
+  if (product.brand) { brand.textContent = product.brand; brand.style.display = ''; } else brand.style.display = 'none';
+  var col = document.getElementById('pinImgCol'), noImg = document.getElementById('pinNoImg');
+  var src = product.proxyImageUrl || product.imageUrl;
+  if (src) {
+    var img = col.querySelector('img');
+    if (!img) { img = document.createElement('img'); col.appendChild(img); }
+    img.src = src; img.alt = product.title; img.style.display = 'block';
+    img.onerror = function() { img.style.display = 'none'; noImg.style.display = 'flex'; };
+    noImg.style.display = 'none';
+  } else {
+    var img2 = col.querySelector('img');
+    if (img2) img2.style.display = 'none';
+    noImg.style.display = 'flex';
+  }
+  document.getElementById('eTitle').value = product.title || '';
+  document.getElementById('ePrice').value = product.price || '';
+  document.getElementById('eDesc').value = product.description || '';
+  document.getElementById('eImage').value = product.imageUrl || '';
+  // Auto detect + set style
+  var style = detectStyle(product.title);
+  setStyleUI(style);
+  document.getElementById('autoStyleLabel').textContent = 'Auto: ' + style;
+}
+
+function setStyleUI(style) {
+  selectedStyle = style;
+  ['Luxury','Bold','Minimal','Festive','Natural','Dark'].forEach(function(s) {
+    document.getElementById('s' + s).classList.remove('active');
+  });
+  var map = { luxury:'Luxury', bold:'Bold', minimal:'Minimal', festive:'Festive', natural:'Natural', dark:'Dark' };
+  if (map[style]) document.getElementById('s' + map[style]).classList.add('active');
+}
+function pickStyle(style, btn) {
+  setStyleUI(style);
+  document.getElementById('autoStyleLabel').textContent = '';
+}
+
+// Edit fields sync
+['eTitle','ePrice','eDesc','eImage'].forEach(function(id) {
+  document.getElementById(id).addEventListener('input', function(e) {
+    var map = { eTitle:'title', ePrice:'price', eDesc:'description', eImage:'imageUrl' };
+    if (product) {
+      product[map[id]] = e.target.value;
+      if (id === 'eImage') product.proxyImageUrl = '/api/proxy-image?url=' + encodeURIComponent(e.target.value);
+      renderPreview();
+    }
   });
 });
-
-function selectStyle(style,btn){
-  selectedStyle=style;
-  document.querySelectorAll('.style-opt').forEach(function(b){b.classList.remove('active');});
-  btn.classList.add('active');
+function toggleEdit() {
+  showEdit = !showEdit;
+  document.getElementById('editFields').style.display = showEdit ? 'block' : 'none';
+  document.getElementById('editToggle').textContent = showEdit ? '▲ Hide Details' : '✏️ Edit Details';
 }
 
-async function extract(){
-  var url=document.getElementById('amazonUrl').value.trim();
-  if(!url) return;
-  show('formCard',false); show('loadingState',true);
-  try{
-    var r=await fetch('/api/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amazonUrl:url})}).then(function(x){return x.json();});
-    if(r.error) throw new Error(r.error);
-    product=Object.assign({},r.product,{amazonUrl:url});
-    render();
-    show('loadingState',false); show('previewCard',true);
-  }catch(e){
-    show('loadingState',false); show('formCard',true);
-    toast('❌ '+(e.message||'Could not extract product details'));
-  }
-}
-
-function render(){
-  var t=product.title||'(no title found)';
-  document.getElementById('pinTitle').textContent=t;
-  document.getElementById('pinDesc').textContent=product.description||'';
-  var price=document.getElementById('pinPrice');
-  if(product.price){price.textContent=product.price;price.style.display='';}else price.style.display='none';
-  var brand=document.getElementById('pinBrand');
-  if(product.brand){brand.textContent=product.brand;brand.style.display='';}else brand.style.display='none';
-  var wrap=document.getElementById('pinImgWrap'),noImg=document.getElementById('pinNoImg');
-  var src=product.proxyImageUrl||product.imageUrl;
-  if(src){
-    var img=wrap.querySelector('img');
-    if(!img){img=document.createElement('img');wrap.appendChild(img);}
-    img.src=src; img.alt=t; img.style.display='block';
-    img.onerror=function(){img.style.display='none';noImg.style.display='flex';};
-    noImg.style.display='none';
-  }else{
-    var img=wrap.querySelector('img');
-    if(img) img.style.display='none';
-    noImg.style.display='flex';
-  }
-  document.getElementById('eTitle').value=product.title||'';
-  document.getElementById('ePrice').value=product.price||'';
-  document.getElementById('eDesc').value=product.description||'';
-  document.getElementById('eImage').value=product.imageUrl||'';
-}
-
-async function enhanceImage(){
-  show('previewCard',false); show('aiThinking',true);
-  var msgs=['Analyzing product style…','Choosing color palette…','Designing text overlays…','Adding visual effects…','Polishing your pin…'];
-  var mi=0;
-  var iv=setInterval(function(){mi=(mi+1)%msgs.length;document.getElementById('aiMsg').textContent=msgs[mi];},1200);
-  try{
-    var r=await fetch('/api/design-pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:product.title,price:product.price,description:product.description,brand:product.brand,style:selectedStyle})}).then(function(x){return x.json();});
+// ═══════════════════════════════════════════════════════════════
+// DESIGN PIN
+// ═══════════════════════════════════════════════════════════════
+async function startDesign() {
+  show('previewCard', false);
+  show('aiState', true);
+  var msgs = ['Analyzing product…','Choosing color palette…','Writing tagline…','Generating hashtags…','Drawing pin…'];
+  var mi = 0;
+  var iv = setInterval(function() { mi = (mi+1)%msgs.length; document.getElementById('aiMsg').textContent = msgs[mi]; }, 1100);
+  try {
+    var s = loadSettings();
+    var r = await fetch('/api/design-pin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: product.title, price: product.price, description: product.description, brand: product.brand, style: selectedStyle, groqKey: s.groqKey || '' })
+    }).then(function(x) { return x.json(); });
     clearInterval(iv);
-    if(r.error) throw new Error(r.error);
-    document.getElementById('aiMsg').textContent='Drawing pin…';
-    await drawPin(r.design);
-    show('aiThinking',false); show('canvasWrap',true);
-  }catch(e){
-    clearInterval(iv);
-    show('aiThinking',false); show('previewCard',true);
-    toast('❌ '+(e.message||'Design failed'));
-  }
-}
-
-async function drawPin(design){
-  var canvas=document.getElementById('pinCanvas');
-  var ctx=canvas.getContext('2d');
-  var W=800,H=1000;
-  canvas.width=W; canvas.height=H;
-  var bg=design.background||{type:'solid',color:'#1a1a1a'};
-  if(bg.type==='gradient'){
-    var grad=ctx.createLinearGradient(0,0,W,H);
-    grad.addColorStop(0,bg.from||'#1a1a1a');
-    grad.addColorStop(1,bg.to||'#0f0f0f');
-    ctx.fillStyle=grad;
-  }else{
-    ctx.fillStyle=bg.color||'#1a1a1a';
-  }
-  ctx.fillRect(0,0,W,H);
-  var src=product.proxyImageUrl||product.imageUrl;
-  var imgH=580,imgY=0;
-  if(src){
-    try{
-      var img=await loadImg(src);
-      var scale=Math.max(W/img.width,imgH/img.height);
-      var sw=img.width*scale,sh=img.height*scale;
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0,0,W,imgH);
-      ctx.clip();
-      ctx.drawImage(img,(W-sw)/2,(imgH-sh)/2,sw,sh);
-      ctx.restore();
-      // Overlay for text readability
-      var igrad=ctx.createLinearGradient(0,imgH*0.4,0,imgH);
-      igrad.addColorStop(0,'rgba(0,0,0,0)');
-      igrad.addColorStop(1,'rgba(0,0,0,0.82)');
-      ctx.fillStyle=igrad;
-      ctx.fillRect(0,0,W,imgH);
-    }catch(e){console.warn('img failed',e);}
-  }
-  var accent=design.accent||'#e60023';
-  var textColor=design.text||'#ffffff';
-  var y=imgH+36;
-  // Brand badge
-  if(product.brand&&design.showBrand){
-    ctx.fillStyle=accent;
-    var bw=ctx.measureText(product.brand.toUpperCase()).width+30;
-    ctx.font='600 14px DM Sans,sans-serif';
-    bw=ctx.measureText(product.brand.toUpperCase()).width+30;
-    roundRect(ctx,40,y,bw,30,6); ctx.fill();
-    ctx.fillStyle='#fff';
-    ctx.fillText(product.brand.toUpperCase(),55,y+20);
-    y+=48;
-  }
-  // Title
-  var titleSize=design.titleFontSize||40;
-  ctx.font=(design.titleWeight||'700')+' '+titleSize+'px DM Sans,sans-serif';
-  ctx.fillStyle=textColor;
-  var lines=wrapText(ctx,product.title||'',W-80,titleSize);
-  lines.slice(0,3).forEach(function(line,i){ctx.fillText(line,40,y+(i+1)*(titleSize+4));});
-  y+=lines.slice(0,3).length*(titleSize+8)+10;
-  // Price
-  if(product.price){
-    var ps=design.priceFontSize||38;
-    if(design.priceBadge){
-      ctx.font='700 '+ps+'px DM Sans,sans-serif';
-      var pw=ctx.measureText(product.price).width+44;
-      ctx.fillStyle=accent;
-      roundRect(ctx,40,y,pw,ps+20,10); ctx.fill();
-      ctx.fillStyle='#fff';
-      ctx.fillText(product.price,62,y+ps+4);
-    }else{
-      ctx.fillStyle=accent;
-      ctx.font='700 '+ps+'px DM Sans,sans-serif';
-      ctx.fillText(product.price,40,y+ps);
+    if (r.error) throw new Error(r.error);
+    currentDesign = r.design;
+    // Show hashtags in preview
+    if (r.design.hashtags && r.design.hashtags.length) {
+      product.hashtags = r.design.hashtags;
+      var tagsEl = document.getElementById('pinTags');
+      tagsEl.textContent = r.design.hashtags.map(function(h) { return '#'+h; }).join(' ');
+      tagsEl.style.display = '';
     }
-    y+=ps+36;
+    document.getElementById('aiMsg').textContent = 'Rendering canvas…';
+    await drawPin(r.design);
+    show('aiState', false);
+    show('canvasWrap', true);
+  } catch(e) {
+    clearInterval(iv);
+    show('aiState', false);
+    show('previewCard', true);
+    toast('❌ ' + (e.message || 'Design failed'), 'err');
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// THEMES — all with guaranteed contrast
+// ═══════════════════════════════════════════════════════════════
+var THEMES = {
+  luxury:  { bgFrom:'#0f0c00', bgTo:'#1c1600', accent:'#d4a843', text:'#fff8e7', subtext:'rgba(212,168,67,0.85)', priceBg:'#d4a843', priceText:'#0f0c00', ctaBg:'#d4a843', ctaText:'#0f0c00', overlayEnd:'rgba(15,12,0,0.92)' },
+  bold:    { bgFrom:'#120000', bgTo:'#1a0000', accent:'#ff2222', text:'#ffffff', subtext:'rgba(255,255,255,0.75)', priceBg:'#ff2222', priceText:'#ffffff', ctaBg:'#ff2222', ctaText:'#ffffff', overlayEnd:'rgba(18,0,0,0.94)' },
+  minimal: { bgFrom:'#f8f6f3', bgTo:'#eeebe6', accent:'#111111', text:'#111111', subtext:'rgba(0,0,0,0.55)', priceBg:'#111111', priceText:'#ffffff', ctaBg:'#111111', ctaText:'#ffffff', overlayEnd:'rgba(245,242,238,0.96)' },
+  festive: { bgFrom:'#150900', bgTo:'#0f0600', accent:'#ff9800', text:'#fff3e0', subtext:'rgba(255,152,0,0.9)', priceBg:'#ff9800', priceText:'#150900', ctaBg:'#ff9800', ctaText:'#150900', overlayEnd:'rgba(21,9,0,0.93)' },
+  natural: { bgFrom:'#071007', bgTo:'#030a03', accent:'#4caf50', text:'#e8f5e9', subtext:'rgba(76,175,80,0.9)', priceBg:'#4caf50', priceText:'#071007', ctaBg:'#4caf50', ctaText:'#071007', overlayEnd:'rgba(7,16,7,0.93)' },
+  dark:    { bgFrom:'#04001a', bgTo:'#060012', accent:'#8b5cf6', text:'#f0ebff', subtext:'rgba(139,92,246,0.9)', priceBg:'#8b5cf6', priceText:'#ffffff', ctaBg:'#8b5cf6', ctaText:'#ffffff', overlayEnd:'rgba(4,0,26,0.94)' },
+};
+
+// ═══════════════════════════════════════════════════════════════
+// CANVAS DRAW — 1080 × 1920
+// ═══════════════════════════════════════════════════════════════
+async function drawPin(design) {
+  var canvas = document.getElementById('pinCanvas');
+  var ctx = canvas.getContext('2d');
+  var W = 1080, H = 1920;
+  canvas.width = W; canvas.height = H;
+
+  var th = THEMES[selectedStyle] || THEMES.bold;
+
+  // Background gradient
+  var bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, th.bgFrom);
+  bgGrad.addColorStop(1, th.bgTo);
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Image zone: top 56% = 1075px
+  var imgZoneH = Math.round(H * 0.56); // 1075
+  var src = product.proxyImageUrl || product.imageUrl;
+
+  if (src) {
+    try {
+      var img = await loadImg(src);
+      // CONTAIN fit (full product visible) with padding
+      var pad = 40;
+      var maxW = W - pad * 2, maxH = imgZoneH - pad * 2;
+      var scale = Math.min(maxW / img.width, maxH / img.height);
+      var dw = img.width * scale, dh = img.height * scale;
+      var dx = (W - dw) / 2, dy = pad + (maxH - dh) / 2;
+
+      // Apply filter if specified
+      if (design.imageFilter) ctx.filter = design.imageFilter;
+      ctx.drawImage(img, dx, dy, dw, dh);
+      ctx.filter = 'none';
+    } catch(e) { console.warn('img load failed', e); }
+  }
+
+  // Price badge — top right corner
+  if (product.price) {
+    var badgeText = product.price;
+    ctx.font = 'bold 38px DM Sans, sans-serif';
+    var bw = ctx.measureText(badgeText).width + 44;
+    var bh = 64, bx = W - bw - 24, by = 30;
+    ctx.fillStyle = th.priceBg;
+    roundRect(ctx, bx, by, bw, bh, 14); ctx.fill();
+    ctx.fillStyle = th.priceText;
+    ctx.fillText(badgeText, bx + 22, by + 43);
+  }
+
+  // Gradient fade from image to content zone
+  var fadeStart = imgZoneH - 180;
+  var fadeGrad = ctx.createLinearGradient(0, fadeStart, 0, imgZoneH + 20);
+  fadeGrad.addColorStop(0, 'rgba(0,0,0,0)');
+  fadeGrad.addColorStop(1, th.overlayEnd);
+  ctx.fillStyle = fadeGrad;
+  ctx.fillRect(0, fadeStart, W, imgZoneH + 20 - fadeStart);
+
+  // Content zone starts at imgZoneH
+  var y = imgZoneH + 38;
+
+  // Brand badge
+  if (product.brand) {
+    ctx.font = '600 26px DM Sans, sans-serif';
+    var brandTxt = product.brand.toUpperCase();
+    var brW = ctx.measureText(brandTxt).width + 32;
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    roundRect(ctx, 50, y - 6, brW, 40, 8); ctx.fill();
+    ctx.fillStyle = th.subtext;
+    ctx.fillText(brandTxt, 66, y + 22);
+    y += 56;
+  }
+
+  // Title — wrap to 3 lines max
+  var titleSize = 64;
+  ctx.font = 'bold ' + titleSize + 'px DM Sans, sans-serif';
+  ctx.fillStyle = th.text;
+  var titleLines = wrapText(ctx, product.title || '', W - 100, titleSize);
+  titleLines.slice(0, 3).forEach(function(line, i) {
+    ctx.fillText(line, 50, y + (i + 1) * (titleSize + 8));
+  });
+  y += titleLines.slice(0, 3).length * (titleSize + 8) + 20;
+
   // Tagline
-  if(design.tagline){
-    ctx.fillStyle=design.taglineColor||'rgba(255,255,255,0.6)';
-    ctx.font='400 22px DM Sans,sans-serif';
-    ctx.fillText(design.tagline,40,y);
-    y+=40;
+  if (design.tagline) {
+    ctx.font = '400 36px DM Sans, sans-serif';
+    ctx.fillStyle = th.subtext;
+    var tLines = wrapText(ctx, design.tagline, W - 100, 36);
+    tLines.slice(0, 2).forEach(function(line, i) {
+      ctx.fillText(line, 50, y + (i + 1) * 44);
+    });
+    y += tLines.slice(0, 2).length * 44 + 16;
   }
+
+  // Description — 2 lines
+  if (product.description) {
+    ctx.font = '300 30px DM Sans, sans-serif';
+    ctx.fillStyle = selectedStyle === 'minimal' ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.55)';
+    var dLines = wrapText(ctx, product.description, W - 100, 30);
+    dLines.slice(0, 2).forEach(function(line, i) {
+      ctx.fillText(line, 50, y + (i + 1) * 38);
+    });
+    y += dLines.slice(0, 2).length * 38 + 24;
+  }
+
+  // Hashtags — 2 rows
+  if (product.hashtags && product.hashtags.length) {
+    var tags = product.hashtags.slice(0, 8).map(function(h) { return '#' + h; });
+    ctx.font = '400 26px DM Sans, sans-serif';
+    ctx.fillStyle = th.accent;
+    var row1 = '', row2 = '', half = Math.ceil(tags.length / 2);
+    row1 = tags.slice(0, half).join('  ');
+    row2 = tags.slice(half).join('  ');
+    ctx.fillText(row1, 50, y + 30); y += 40;
+    ctx.fillText(row2, 50, y + 30); y += 52;
+  }
+
   // CTA button
-  if(design.ctaText){
-    ctx.font='600 20px DM Sans,sans-serif';
-    var ctaW=ctx.measureText(design.ctaText).width+60;
-    ctx.fillStyle=accent;
-    roundRect(ctx,40,y,ctaW,46,23); ctx.fill();
-    ctx.fillStyle='#fff';
-    ctx.fillText(design.ctaText,40+30,y+30);
+  if (design.ctaText) {
+    ctx.font = 'bold 34px DM Sans, sans-serif';
+    var ctaTxt = design.ctaText;
+    var ctaW = ctx.measureText(ctaTxt).width + 80, ctaH = 72;
+    ctx.fillStyle = th.ctaBg;
+    roundRect(ctx, 50, y, ctaW, ctaH, ctaH / 2); ctx.fill();
+    ctx.fillStyle = th.ctaText;
+    ctx.fillText(ctaTxt, 50 + 40, y + 47);
   }
-  canvasDataUrl=canvas.toDataURL('image/jpeg',0.92);
+
+  canvasDataUrl = canvas.toDataURL('image/jpeg', 0.94);
 }
 
-async function openEnhancedPinterest(){
-  var btn=document.getElementById('pinEnhancedBtn');
-  btn.disabled=true; btn.textContent='⏳ Uploading image…';
-  try{
-    // Upload canvas to imgbb
-    var r=await fetch('/api/upload-image',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({base64:canvasDataUrl})}).then(function(x){return x.json();});
-    if(r.error) throw new Error(r.error);
-    var desc=[product.title,product.price,'Shop now on Amazon'].filter(Boolean).join(' — ');
-    var p=new URLSearchParams({url:product.amazonUrl,title:product.title||'',description:desc,media:r.url});
-    window.open('https://www.pinterest.com/pin/create/button/?'+p.toString(),'_blank');
-  }catch(e){
-    toast('❌ Upload failed: '+(e.message||'Check IMGBB_API_KEY in Render'));
-  }finally{
-    btn.disabled=false; btn.textContent='📌 Save Enhanced Pin to Pinterest';
-  }
-}
-
-function openOriginalPinterest(){
-  var desc=[product.title,product.price,product.description].filter(Boolean).join(' — ');
-  var p=new URLSearchParams({url:product.amazonUrl,title:product.title||'',description:desc});
-  if(product.imageUrl) p.set('media',product.imageUrl);
-  window.open('https://www.pinterest.com/pin/create/button/?'+p.toString(),'_blank');
-}
-
-function loadImg(src){
-  return new Promise(function(res,rej){
-    var img=new Image(); img.crossOrigin='anonymous';
-    img.onload=function(){res(img);}; img.onerror=function(){rej(new Error('failed'));};
-    img.src=src;
+function loadImg(src) {
+  return new Promise(function(res, rej) {
+    var img = new Image(); img.crossOrigin = 'anonymous';
+    img.onload = function() { res(img); };
+    img.onerror = function() { rej(new Error('Image load failed')); };
+    img.src = src;
   });
 }
-function wrapText(ctx,text,maxW,fontSize){
-  ctx.font='700 '+fontSize+'px DM Sans,sans-serif';
-  var words=text.split(' '),lines=[],line='';
-  words.forEach(function(w){
-    var test=line?line+' '+w:w;
-    if(ctx.measureText(test).width>maxW){if(line)lines.push(line);line=w;}
-    else line=test;
+function wrapText(ctx, text, maxW, fontSize) {
+  ctx.font = 'bold ' + fontSize + 'px DM Sans, sans-serif';
+  var words = (text || '').split(' '), lines = [], line = '';
+  words.forEach(function(w) {
+    var test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width > maxW) { if (line) lines.push(line); line = w; }
+    else line = test;
   });
-  if(line) lines.push(line);
+  if (line) lines.push(line);
   return lines;
 }
-function roundRect(ctx,x,y,w,h,r){
-  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h); ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r); ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y); ctx.closePath();
 }
-function backToPreview(){show('canvasWrap',false);show('previewCard',true);}
-function toggleEdit(){
-  showEdit=!showEdit;
-  document.getElementById('editPanel').style.display=showEdit?'block':'none';
-  document.getElementById('editToggle').textContent=showEdit?'▲ Hide':'✏️ Edit details';
+
+// ═══════════════════════════════════════════════════════════════
+// UPLOAD TO IMGBB + OPEN PINTEREST
+// ═══════════════════════════════════════════════════════════════
+async function uploadToImgbb(base64) {
+  var key = loadSettings().imgbbKey;
+  if (!key) throw new Error('imgbb API key not set in Settings');
+  var fd = new FormData();
+  fd.append('key', key);
+  fd.append('image', base64.replace(/^data:image\/\w+;base64,/, ''));
+  fd.append('expiration', '600');
+  var r = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: fd }).then(function(x) { return x.json(); });
+  if (!r.success) throw new Error('imgbb upload failed');
+  return r.data.url;
 }
-function reset(){
-  product=null;showEdit=false;canvasDataUrl='';
-  document.getElementById('amazonUrl').value='';
-  document.getElementById('editPanel').style.display='none';
-  show('previewCard',false);show('canvasWrap',false);show('formCard',true);
+
+function buildPinterestUrl(imageUrl) {
+  var affUrl = product.affiliateUrl || product.amazonUrl;
+  var desc = [product.title, product.price, product.description].filter(Boolean).join(' — ');
+  if (product.hashtags && product.hashtags.length) desc += '\n\n' + product.hashtags.slice(0, 10).map(function(h) { return '#'+h; }).join(' ');
+  var p = new URLSearchParams({ url: affUrl, title: product.title || '', description: desc });
+  if (imageUrl) p.set('media', imageUrl);
+  return 'https://www.pinterest.com/pin/create/button/?' + p.toString();
 }
-function show(id,v){document.getElementById(id).style.display=v?'':'none';}
-var tt;
-function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.style.display='block';clearTimeout(tt);tt=setTimeout(function(){t.style.display='none';},5000);}
+
+async function openEnhancedPinterest() {
+  var btn = document.getElementById('pinEnhancedBtn');
+  btn.disabled = true; btn.textContent = '⏳ Uploading…';
+  try {
+    var imgUrl = await uploadToImgbb(canvasDataUrl);
+    window.open(buildPinterestUrl(imgUrl), '_blank');
+    var board = document.getElementById('boardSelect').value;
+    saveToHistory({ title: product.title, price: product.price, affiliateUrl: product.affiliateUrl || product.amazonUrl, board: board, imageUrl: product.imageUrl, style: selectedStyle, designed: true });
+    toast('✓ Opened Pinterest with designed pin!', 'ok');
+  } catch(e) {
+    toast('❌ ' + e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = '📌 Save to Pinterest';
+  }
+}
+
+function postNow() {
+  var board = document.getElementById('boardSelect').value;
+  window.open(buildPinterestUrl(product.imageUrl || ''), '_blank');
+  saveToHistory({ title: product.title, price: product.price, affiliateUrl: product.affiliateUrl || product.amazonUrl, board: board, imageUrl: product.imageUrl, style: selectedStyle, designed: false });
+  toast('✓ Opened Pinterest!', 'ok');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SCHEDULER
+// ═══════════════════════════════════════════════════════════════
+var SLOTS = [
+  { label: '7AM', hour: 7, min: 0 },
+  { label: '2PM', hour: 14, min: 0 },
+  { label: '8PM', hour: 20, min: 0 },
+];
+function pickSlot(i, btn) {
+  selectedSlot = i;
+  document.querySelectorAll('.slot-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+}
+function getNextSlotTime(slot) {
+  var now = new Date();
+  var next = new Date();
+  next.setHours(slot.hour, slot.min, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+  return next;
+}
+function schedulePin() {
+  if (selectedSlot < 0) { toast('Pick a time slot first', 'err'); return; }
+  var slot = SLOTS[selectedSlot];
+  var fireAt = getNextSlotTime(slot);
+  var queue = JSON.parse(localStorage.getItem('amzpin_queue') || '[]');
+  queue.push({
+    id: Date.now(),
+    title: product.title,
+    price: product.price,
+    affiliateUrl: product.affiliateUrl || product.amazonUrl,
+    imageUrl: product.imageUrl,
+    board: document.getElementById('boardSelect').value,
+    style: selectedStyle,
+    slot: slot.label,
+    fireAt: fireAt.getTime(),
+    hashtags: product.hashtags || [],
+    description: product.description || '',
+  });
+  localStorage.setItem('amzpin_queue', JSON.stringify(queue));
+  toast('✓ Scheduled for ' + slot.label + ' IST ' + (fireAt.toDateString() === new Date().toDateString() ? 'today' : 'tomorrow'), 'ok');
+}
+function renderQueue() {
+  var queue = JSON.parse(localStorage.getItem('amzpin_queue') || '[]');
+  var el = document.getElementById('queueList');
+  if (!queue.length) { el.innerHTML = '<div style="color:var(--mt);font-size:13px;text-align:center;padding:40px 0">No pins scheduled.</div>'; return; }
+  el.innerHTML = queue.map(function(q, i) {
+    var d = new Date(q.fireAt);
+    var timeStr = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    var dateStr = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    return '<div class="queue-item"><div class="queue-time">'+q.slot+'</div><div class="queue-info"><div class="queue-title">'+q.title+'</div><div class="queue-meta">'+dateStr+' at '+timeStr+(q.board ? ' · '+q.board : '')+'</div></div><button class="btn-outline" onclick="removeFromQueue('+i+')" style="flex-shrink:0">✕</button></div>';
+  }).join('');
+}
+function removeFromQueue(i) {
+  var queue = JSON.parse(localStorage.getItem('amzpin_queue') || '[]');
+  queue.splice(i, 1);
+  localStorage.setItem('amzpin_queue', JSON.stringify(queue));
+  renderQueue();
+}
+// Check queue every minute
+function checkQueue() {
+  var queue = JSON.parse(localStorage.getItem('amzpin_queue') || '[]');
+  var now = Date.now();
+  var remaining = [];
+  queue.forEach(function(q) {
+    if (q.fireAt <= now) {
+      // Fire it
+      var desc = [q.title, q.price, q.description].filter(Boolean).join(' — ');
+      if (q.hashtags && q.hashtags.length) desc += '\n\n' + q.hashtags.map(function(h) { return '#'+h; }).join(' ');
+      var p = new URLSearchParams({ url: q.affiliateUrl, title: q.title || '', description: desc });
+      if (q.imageUrl) p.set('media', q.imageUrl);
+      window.open('https://www.pinterest.com/pin/create/button/?' + p.toString(), '_blank');
+      toast('📌 Scheduled pin posted: ' + q.title.substring(0, 40), 'ok');
+    } else {
+      remaining.push(q);
+    }
+  });
+  localStorage.setItem('amzpin_queue', JSON.stringify(remaining));
+}
+setInterval(checkQueue, 60000);
+
+// ═══════════════════════════════════════════════════════════════
+// HISTORY
+// ═══════════════════════════════════════════════════════════════
+function saveToHistory(item) {
+  item.date = new Date().toISOString();
+  var hist = JSON.parse(localStorage.getItem('amzpin_history') || '[]');
+  hist.unshift(item);
+  if (hist.length > 500) hist = hist.slice(0, 500);
+  localStorage.setItem('amzpin_history', JSON.stringify(hist));
+}
+function renderHistory() {
+  var hist = JSON.parse(localStorage.getItem('amzpin_history') || '[]');
+  var el = document.getElementById('historyList');
+  if (!hist.length) { el.innerHTML = '<div style="color:var(--mt);font-size:13px;text-align:center;padding:40px 0">No pins posted yet.</div>'; return; }
+  el.innerHTML = hist.map(function(h) {
+    var d = new Date(h.date).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+    return '<div class="hist-item"><div class="hist-item-top">'+(h.imageUrl?'<img class="hist-img" src="'+h.imageUrl+'" onerror="this.style.display=\'none\'"/>':'')+'<div class="hist-info"><div class="hist-title">'+h.title+'</div><div class="hist-meta">'+d+(h.board?' · '+h.board:'')+(h.style?' · '+h.style:'')+'</div></div>'+(h.price?'<div class="hist-price">'+h.price+'</div>':'')+'</div></div>';
+  }).join('');
+}
+function exportHistoryCSV() {
+  var hist = JSON.parse(localStorage.getItem('amzpin_history') || '[]');
+  if (!hist.length) { toast('No history to export', 'err'); return; }
+  var csv = 'Date,Title,Price,Board,Style,Affiliate URL\n';
+  hist.forEach(function(h) {
+    csv += [new Date(h.date).toLocaleDateString('en-IN'), '"'+(h.title||'').replace(/"/g,'""')+'"', h.price||'', h.board||'', h.style||'', h.affiliateUrl||''].join(',') + '\n';
+  });
+  var blob = new Blob([csv], { type: 'text/csv' });
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'pin-history.csv'; a.click();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BULK MODE
+// ═══════════════════════════════════════════════════════════════
+function switchMode(mode) {
+  show('modeSingle', mode === 'single');
+  show('modeBulk', mode === 'bulk');
+  document.getElementById('tabSingle').classList.toggle('active', mode === 'single');
+  document.getElementById('tabBulk').classList.toggle('active', mode === 'bulk');
+}
+
+document.getElementById('csvFile').addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    var lines = ev.target.result.split('\n');
+    var header = lines[0].split(',').map(function(h) { return h.trim().toLowerCase().replace(/"/g,''); });
+    var urlIdx = header.indexOf('url');
+    if (urlIdx < 0) { toast('CSV needs a "url" column', 'err'); return; }
+    var urls = [];
+    lines.slice(1).forEach(function(line) {
+      if (!line.trim()) return;
+      var cols = line.split(',');
+      var u = (cols[urlIdx] || '').trim().replace(/"/g,'');
+      if (u) urls.push(u);
+    });
+    document.getElementById('bulkUrls').value = urls.join('\n');
+    toast('✓ Loaded ' + urls.length + ' URLs from CSV', 'ok');
+  };
+  reader.readAsText(file);
+});
+
+async function runBulk() {
+  var raw = document.getElementById('bulkUrls').value.trim();
+  var urls = raw.split('\n').map(function(u) { return u.trim(); }).filter(Boolean).slice(0, 50);
+  if (!urls.length) { toast('No URLs to process', 'err'); return; }
+  var board = document.getElementById('bulkBoard').value;
+  var style = document.getElementById('bulkStyle').value;
+  var btn = document.getElementById('bulkRunBtn');
+  btn.disabled = true;
+  show('bulkProgress', true);
+  document.getElementById('bulkResults').innerHTML = '';
+  for (var i = 0; i < urls.length; i++) {
+    var pct = Math.round(((i) / urls.length) * 100);
+    document.getElementById('progressBar').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = 'Processing ' + (i+1) + ' of ' + urls.length + '…';
+    var url = urls[i];
+    try {
+      var p = await extractProduct(url);
+      var autoStyle = style === 'auto' ? detectStyle(p.title) : style;
+      var pinUrl = buildBulkPinterestUrl(p);
+      appendBulkResult(p, pinUrl, url, i, board, '✓ Ready');
+      await sleep(800);
+    } catch(e) {
+      appendBulkResult({ title: url, price: '', imageUrl: '' }, '#', url, i, board, '❌ Failed');
+    }
+  }
+  document.getElementById('progressBar').style.width = '100%';
+  document.getElementById('progressLabel').textContent = 'Done! ' + urls.length + ' products processed.';
+  btn.disabled = false;
+}
+
+function buildBulkPinterestUrl(p) {
+  var affUrl = p.affiliateUrl || p.originalUrl;
+  var desc = [p.title, p.price, p.description].filter(Boolean).join(' — ');
+  var params = new URLSearchParams({ url: affUrl, title: p.title || '', description: desc });
+  if (p.imageUrl) params.set('media', p.imageUrl);
+  return 'https://www.pinterest.com/pin/create/button/?' + params.toString();
+}
+
+function appendBulkResult(p, pinUrl, origUrl, i, board, status) {
+  var el = document.getElementById('bulkResults');
+  var div = document.createElement('div');
+  div.className = 'bulk-result';
+  div.innerHTML = (p.imageUrl ? '<img src="'+p.imageUrl+'" onerror="this.style.display=\'none\'"/>' : '<div style="width:42px;height:42px;background:var(--bdr);border-radius:6px;flex-shrink:0"></div>') +
+    '<div class="bulk-result-info"><div class="bulk-result-title">'+(p.title||origUrl)+'</div>'+(p.price?'<div class="bulk-result-price">'+p.price+'</div>':'')+'<div class="bulk-result-status">'+status+(board?' · '+board:'')+'</div></div>' +
+    (status.startsWith('✓') ? '<a href="'+pinUrl+'" target="_blank" style="flex-shrink:0;padding:8px 12px;background:#e60023;color:#fff;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap">📌 Pin</a>' : '');
+  el.appendChild(div);
+}
+
+function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+// ═══════════════════════════════════════════════════════════════
+// DOWNLOAD + HELPERS
+// ═══════════════════════════════════════════════════════════════
+function downloadPin() {
+  if (!canvasDataUrl) return;
+  var a = document.createElement('a');
+  a.href = canvasDataUrl;
+  a.download = (product.title || 'pin').substring(0, 40).replace(/[^a-z0-9]/gi, '-') + '.jpg';
+  a.click();
+}
+function backToPreview() { show('canvasWrap', false); show('previewCard', true); }
+function reset() {
+  product = null; canvasDataUrl = ''; currentDesign = null; showEdit = false; selectedSlot = -1;
+  document.getElementById('amazonUrl').value = '';
+  document.getElementById('editFields').style.display = 'none';
+  document.getElementById('editToggle').textContent = '✏️ Edit Details';
+  document.querySelectorAll('.slot-btn').forEach(function(b) { b.classList.remove('active'); });
+  show('previewCard', false); show('canvasWrap', false); show('aiState', false);
+  show('modeSingle', true);
+}
+function show(id, v) { var el = document.getElementById(id); if (el) el.style.display = v ? '' : 'none'; }
+var toastTimer;
+function toast(msg, type) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + (type || 'ok'); t.style.display = 'block';
+  clearTimeout(toastTimer); toastTimer = setTimeout(function() { t.style.display = 'none'; }, 4000);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+populateBoards();
+checkQueue();
 </script>
 </body>
 </html>
