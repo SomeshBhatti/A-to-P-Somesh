@@ -115,6 +115,7 @@ select option{background:#141414}
 <div class="panel" id="panelMain">
   <div class="mode-tabs" style="margin-top:16px">
     <button class="mode-tab active" id="tabSingle" onclick="switchMode('single')">Single URL</button>
+    <button class="mode-tab" id="tabQueue" onclick="switchMode('queue')">⚡ Quick Queue</button>
     <button class="mode-tab" id="tabBulk" onclick="switchMode('bulk')">Bulk / CSV</button>
   </div>
 
@@ -125,6 +126,43 @@ select option{background:#141414}
       <div class="field"><label class="lbl">Post to Board</label><select id="boardSelect"><option value="">Select board…</option></select></div>
       <button class="btn-red" id="extractBtn">Extract & Preview →</button>
     </div>
+  </div>
+
+  <!-- Quick Queue -->
+  <div id="modeQueue" style="display:none">
+    <div class="card">
+      <div style="margin-bottom:16px">
+        <label class="lbl" style="margin-bottom:10px">⏰ Post Time (saved automatically)</label>
+        <div class="slot-grid" style="margin-bottom:0">
+          <button class="slot-btn" id="qSlot0" onclick="pickQSlot(0,this)"><span class="slot-time">7AM</span>Morning IST</button>
+          <button class="slot-btn" id="qSlot1" onclick="pickQSlot(1,this)"><span class="slot-time">2PM</span>Afternoon IST</button>
+          <button class="slot-btn" id="qSlot2" onclick="pickQSlot(2,this)"><span class="slot-time">8PM</span>Peak IST</button>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field"><label class="lbl">Board</label><select id="qBoard" onchange="saveQPrefs()"><option value="">Select board…</option></select></div>
+        <div class="field"><label class="lbl">Style</label>
+          <select id="qStyle" onchange="saveQPrefs()">
+            <option value="auto">Auto detect</option>
+            <option value="luxury">👑 Luxury</option>
+            <option value="bold">🔥 Bold Sale</option>
+            <option value="minimal">🤍 Minimal</option>
+            <option value="festive">🎉 Festive</option>
+            <option value="natural">🌿 Natural</option>
+            <option value="dark">🖤 Dark</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <input type="text" id="qUrl" placeholder="Paste Amazon URL and press Enter…" onkeydown="if(event.key==='Enter')addToQuickQueue()" style="flex:1"/>
+        <button style="padding:11px 20px;background:#e60023;color:#fff;border:none;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;flex-shrink:0" onclick="addToQuickQueue()">+ Add</button>
+      </div>
+      <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:12px;color:var(--mt)">Paste a link → Enter → paste next. Background extracts details.</span>
+        <span id="qCount" style="font-size:12px;font-weight:600;color:var(--grn)"></span>
+      </div>
+    </div>
+    <div id="qFeed" style="margin-top:4px"></div>
   </div>
 
   <!-- Bulk -->
@@ -354,16 +392,17 @@ function removeBoard(i){
   toast('Removed board','ok');
 }
 
-function populateBoards(){
+function populateBoardSelect(id){
   var boards=(loadSettings().boards||[]);
-  ['boardSelect','bulkBoard'].forEach(function(id){
-    var sel=document.getElementById(id);
-    if(!sel) return;
-    var cur=sel.value;
-    sel.innerHTML='<option value="">Select board…</option>';
-    boards.forEach(function(b){sel.innerHTML+='<option value="'+b+'">'+b+'</option>';});
-    if(cur) sel.value=cur;
-  });
+  var sel=document.getElementById(id);
+  if(!sel) return;
+  var cur=sel.value;
+  sel.innerHTML='<option value="">Select board…</option>';
+  boards.forEach(function(b){sel.innerHTML+='<option value="'+b+'">'+b+'</option>';});
+  if(cur) sel.value=cur;
+}
+function populateBoards(){
+  ['boardSelect','bulkBoard','qBoard'].forEach(function(id){populateBoardSelect(id);});
 }
 
 // ── PANELS ────────────────────────────────────────────────────
@@ -627,7 +666,8 @@ function renderQueue(){
   if(!queue.length){el.innerHTML='<div style="color:var(--mt);font-size:13px;text-align:center;padding:40px 0">No pins scheduled.</div>';return;}
   el.innerHTML=queue.map(function(q,i){
     var d=new Date(q.fireAt);var ts=d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});var ds=d.toLocaleDateString('en-IN',{day:'numeric',month:'short'});
-    return '<div class="queue-item"><div class="queue-time">'+q.slot+'</div><div class="queue-info"><div class="queue-title">'+q.title+'</div><div class="queue-meta">'+ds+' at '+ts+(q.board?' · '+q.board:'')+'</div></div><button class="btn-outline" onclick="removeFromQueue('+i+')" style="flex-shrink:0">✕</button></div>';
+    var statusDot=q.status==='failed'?'🔴 ':q.status==='extracting'?'🟡 ':'🟢 ';
+    return '<div class="queue-item"><div class="queue-time">'+q.slot+'</div><div class="queue-info"><div class="queue-title">'+statusDot+q.title+'</div><div class="queue-meta">'+ds+' at '+ts+(q.board?' · '+q.board:'')+(q.price?' · '+q.price:'')+'</div></div><button class="btn-outline" onclick="removeFromQueue('+i+')" style="flex-shrink:0">✕</button></div>';
   }).join('');
 }
 function removeFromQueue(i){var q=JSON.parse(localStorage.getItem('amzpin_queue')||'[]');q.splice(i,1);localStorage.setItem('amzpin_queue',JSON.stringify(q));renderQueue();}
@@ -666,7 +706,141 @@ function exportHistoryCSV(){
 }
 
 // ── BULK ──────────────────────────────────────────────────────
-function switchMode(mode){show('modeSingle',mode==='single');show('modeBulk',mode==='bulk');document.getElementById('tabSingle').classList.toggle('active',mode==='single');document.getElementById('tabBulk').classList.toggle('active',mode==='bulk');}
+// ── QUICK QUEUE ───────────────────────────────────────────────
+var QQ_KEY='amzpin_qq_prefs';
+var qProcessing=false;
+
+function loadQPrefs(){try{return JSON.parse(localStorage.getItem(QQ_KEY))||{};}catch{return {};}}
+function saveQPrefs(){
+  var p=loadQPrefs();
+  p.board=document.getElementById('qBoard').value;
+  p.style=document.getElementById('qStyle').value;
+  localStorage.setItem(QQ_KEY,JSON.stringify(p));
+}
+function initQPrefs(){
+  var p=loadQPrefs();
+  // Restore slot
+  if(p.slot!==undefined) pickQSlot(p.slot, document.getElementById('qSlot'+p.slot));
+  // Restore board after boards are populated
+  if(p.board) document.getElementById('qBoard').value=p.board;
+  if(p.style) document.getElementById('qStyle').value=p.style;
+}
+function pickQSlot(i,btn){
+  document.querySelectorAll('#modeQueue .slot-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  var p=loadQPrefs(); p.slot=i;
+  localStorage.setItem(QQ_KEY,JSON.stringify(p));
+}
+function getQSlot(){
+  var p=loadQPrefs();
+  return p.slot!==undefined ? p.slot : -1;
+}
+
+function addToQuickQueue(){
+  var inp=document.getElementById('qUrl');
+  var url=inp.value.trim();
+  if(!url){inp.focus();return;}
+  var slotIdx=getQSlot();
+  if(slotIdx<0){toast('Pick a time slot first','err');return;}
+  inp.value='';
+  inp.focus();
+
+  // Add to queue immediately with "extracting" status
+  var id=Date.now();
+  var slot=SLOTS[slotIdx];
+  var fireAt=getNextSlotTime(slot);
+  var board=document.getElementById('qBoard').value;
+  var style=document.getElementById('qStyle').value;
+  var queue=JSON.parse(localStorage.getItem('amzpin_queue')||'[]');
+  var item={id:id,title:'Extracting…',price:'',affiliateUrl:injectAffiliate(url),originalUrl:url,imageUrl:'',board:board,style:style==='auto'?'bold':style,slot:slot.label,fireAt:fireAt.getTime(),hashtags:[],description:'',status:'extracting'};
+  queue.push(item);
+  localStorage.setItem('amzpin_queue',JSON.stringify(queue));
+  updateQCount();
+  appendQFeedItem(item);
+  saveQPrefs();
+
+  // Extract in background
+  extractProduct(url).then(function(p){
+    var q=JSON.parse(localStorage.getItem('amzpin_queue')||'[]');
+    var idx=q.findIndex(function(x){return x.id===id;});
+    if(idx>=0){
+      var autoStyle=style==='auto'?detectStyle(p.title):style;
+      q[idx].title=p.title||url;
+      q[idx].price=p.price||'';
+      q[idx].affiliateUrl=p.affiliateUrl||injectAffiliate(url);
+      q[idx].imageUrl=p.imageUrl||'';
+      q[idx].description=p.description||'';
+      q[idx].style=autoStyle;
+      q[idx].status='ready';
+      localStorage.setItem('amzpin_queue',JSON.stringify(q));
+      updateQFeedItem(id, p.title||url, p.price||'', 'ready');
+      updateQCount();
+    }
+  }).catch(function(){
+    var q=JSON.parse(localStorage.getItem('amzpin_queue')||'[]');
+    var idx=q.findIndex(function(x){return x.id===id;});
+    if(idx>=0){q[idx].status='failed';localStorage.setItem('amzpin_queue',JSON.stringify(q));}
+    updateQFeedItem(id, url, '', 'failed');
+    updateQCount();
+  });
+}
+
+function updateQCount(){
+  var queue=JSON.parse(localStorage.getItem('amzpin_queue')||'[]');
+  var el=document.getElementById('qCount');
+  if(el) el.textContent=queue.length+' in queue';
+}
+
+function appendQFeedItem(item){
+  var feed=document.getElementById('qFeed');
+  if(!feed) return;
+  var div=document.createElement('div');
+  div.id='qfeed-'+item.id;
+  div.style.cssText='background:var(--s2);border:1px solid var(--bdr);border-radius:10px;padding:11px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;animation:up 0.2s ease';
+  div.innerHTML='<div style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0" id="qdot-'+item.id+'"></div>'
+    +'<div style="flex:1;min-width:0"><div style="font-size:13px;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="qtitle-'+item.id+'">Extracting…</div>'
+    +'<div style="font-size:11px;color:var(--mt);margin-top:2px" id="qmeta-'+item.id+'">'+item.slot+(item.board?' · '+item.board:'')+'</div></div>'
+    +'<button onclick="removeQueueItemById('+item.id+')" style="background:none;border:none;color:var(--sub);cursor:pointer;font-size:14px;flex-shrink:0">✕</button>';
+  feed.insertBefore(div, feed.firstChild);
+}
+
+function updateQFeedItem(id, title, price, status){
+  var titleEl=document.getElementById('qtitle-'+id);
+  var dotEl=document.getElementById('qdot-'+id);
+  if(titleEl) titleEl.textContent=(price?price+' — ':'')+title;
+  if(dotEl){
+    if(status==='ready') dotEl.style.background='#22c55e';
+    else if(status==='failed') dotEl.style.background='#ef4444';
+  }
+}
+
+function removeQueueItemById(id){
+  var q=JSON.parse(localStorage.getItem('amzpin_queue')||'[]');
+  q=q.filter(function(x){return x.id!==id;});
+  localStorage.setItem('amzpin_queue',JSON.stringify(q));
+  var el=document.getElementById('qfeed-'+id);
+  if(el) el.remove();
+  updateQCount();
+}
+
+function switchMode(mode){
+  show('modeSingle',mode==='single');
+  show('modeQueue',mode==='queue');
+  show('modeBulk',mode==='bulk');
+  document.getElementById('tabSingle').classList.toggle('active',mode==='single');
+  document.getElementById('tabQueue').classList.toggle('active',mode==='queue');
+  document.getElementById('tabBulk').classList.toggle('active',mode==='bulk');
+  if(mode==='queue'){
+    initQPrefs();
+    populateBoardSelect('qBoard');
+    updateQCount();
+    // Rebuild feed from existing queue
+    var feed=document.getElementById('qFeed');
+    if(feed) feed.innerHTML='';
+    var queue=JSON.parse(localStorage.getItem('amzpin_queue')||'[]');
+    queue.slice().reverse().forEach(function(item){appendQFeedItem(item);if(item.status!=='extracting'){updateQFeedItem(item.id,item.title,item.price,item.status||'ready');}});
+  }
+}
 document.getElementById('csvFile').addEventListener('change',function(e){
   var file=e.target.files[0];if(!file)return;
   var reader=new FileReader();
