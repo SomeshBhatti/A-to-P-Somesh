@@ -72,7 +72,7 @@ app.delete("/api/queue/:id", (req, res) => {
 });
 
 // ─── Server-side queue (syncs across all devices) ────────────────────────────
-var serverQueue = []; // in-memory, survives as long as server is up (UptimeRobot keeps it alive)
+// in-memory, survives as long as server is up (UptimeRobot keeps it alive)
 
 app.get("/api/queue", (req, res) => {
   res.json({ queue: serverQueue });
