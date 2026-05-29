@@ -4,18 +4,159 @@ const cors = require("cors");
 const axios = require("axios");
 const cheerio = require("cheerio");
 const path = require("path");
+const session = require("express-session");
+const fs = require("fs");
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "15mb" }));
-app.use(express.static(__dirname));
+app.use(session({
+  secret: process.env.SESSION_SECRET || "amzpin-secret-key",
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, maxAge: 30 * 24 * 60 * 60 * 1000 }
+}));
 
 const PORT = process.env.PORT || 3000;
+const REDIRECT_URI = process.env.REDIRECT_URI || "https://a-to-p-somesh.onrender.com/auth/callback";
+const APP_PASSWORD = process.env.APP_PASSWORD || "pinterest123";
+
+// ─── Global Pinterest token (shared across ALL devices) ───────────────────────
+const TOKEN_FILE = "/tmp/amzpin_token.json";
+let globalToken = { accessToken: null, refreshToken: null, username: null };
+try {
+  if (fs.existsSync(TOKEN_FILE)) {
+    globalToken = JSON.parse(fs.readFileSync(TOKEN_FILE, "utf8"));
+    console.log("✅ Loaded Pinterest token for:", globalToken.username);
+  }
+} catch(e) {}
+function saveToken() {
+  try { fs.writeFileSync(TOKEN_FILE, JSON.stringify(globalToken)); } catch(e) {}
+}
+
+// ─── Password protection middleware ──────────────────────────────────────────
+const PUBLIC_PATHS = ["/auth/app-login", "/auth/app-logout", "/auth/callback", "/login.html"];
+function requireAppAuth(req, res, next) {
+  if (PUBLIC_PATHS.some(p => req.path.startsWith(p))) return next();
+  if (req.session.appAuthed) return next();
+  if (req.path.startsWith("/api/") || req.path.startsWith("/auth/")) {
+    return res.status(401).json({ error: "App not unlocked" });
+  }
+  res.sendFile(path.join(__dirname, "login.html"));
+}
+app.use(requireAppAuth);
+app.use(express.static(__dirname));
+
+// ─── App login/logout ─────────────────────────────────────────────────────────
+app.post("/auth/app-login", (req, res) => {
+  const { password } = req.body;
+  if (password === APP_PASSWORD) {
+    req.session.appAuthed = true;
+    res.json({ ok: true });
+  } else {
+    res.status(401).json({ error: "Wrong password" });
+  }
+});
+app.post("/auth/app-logout", (req, res) => {
+  req.session.destroy(() => res.json({ ok: true }));
+});
+
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
-app.get("/api/status", (req, res) => res.json({ ok: true }));
+
+// ─── Pinterest status (uses global token) ────────────────────────────────────
+app.get("/api/status", async (req, res) => {
+  if (!globalToken.accessToken) return res.json({ connected: false });
+  try {
+    const r = await axios.get("https://api.pinterest.com/v5/user_account", {
+      headers: { Authorization: `Bearer ${globalToken.accessToken}` }
+    });
+    globalToken.username = r.data.username;
+    saveToken();
+    res.json({ connected: true, username: r.data.username });
+  } catch(e) {
+    if (e.response?.status === 401) {
+      globalToken.accessToken = null;
+      saveToken();
+    }
+    res.json({ connected: false });
+  }
+});
+
+// ─── Pinterest OAuth (stores token globally) ─────────────────────────────────
+app.get("/auth/pinterest", (req, res) => {
+  const clientId = process.env.PINTEREST_CLIENT_ID;
+  if (!clientId) return res.redirect("/?error=missing_client_id");
+  const scope = "pins:write,pins:read,boards:read,boards:write,user_accounts:read";
+  const url = `https://www.pinterest.com/oauth/?client_id=${clientId}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=${scope}`;
+  res.redirect(url);
+});
+
+app.get("/auth/callback", async (req, res) => {
+  const { code, error } = req.query;
+  if (error || !code) return res.redirect("/?error=auth_failed");
+  try {
+    const creds = Buffer.from(`${process.env.PINTEREST_CLIENT_ID}:${process.env.PINTEREST_CLIENT_SECRET}`).toString("base64");
+    const tokenRes = await axios.post(
+      "https://api.pinterest.com/v5/oauth/token",
+      new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: REDIRECT_URI }),
+      { headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: `Basic ${creds}` } }
+    );
+    globalToken.accessToken = tokenRes.data.access_token;
+    globalToken.refreshToken = tokenRes.data.refresh_token;
+    try {
+      const user = await axios.get("https://api.pinterest.com/v5/user_account", {
+        headers: { Authorization: `Bearer ${globalToken.accessToken}` }
+      });
+      globalToken.username = user.data.username;
+    } catch {}
+    saveToken();
+    console.log("✅ Pinterest connected for:", globalToken.username);
+    res.redirect("/?connected=true");
+  } catch (e) {
+    console.error("OAuth error:", e.response?.data || e.message);
+    res.redirect("/?error=token_failed");
+  }
+});
+
+app.post("/auth/disconnect", (req, res) => {
+  globalToken = { accessToken: null, refreshToken: null, username: null };
+  saveToken();
+  res.json({ ok: true });
+});
+
+// ─── Get boards (global token) ────────────────────────────────────────────────
+app.get("/api/boards", async (req, res) => {
+  if (!globalToken.accessToken) return res.status(401).json({ error: "Pinterest not connected" });
+  try {
+    const r = await axios.get("https://api.pinterest.com/v5/boards", {
+      headers: { Authorization: `Bearer ${globalToken.accessToken}` },
+      params: { page_size: 50 }
+    });
+    res.json({ boards: r.data.items });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch boards" });
+  }
+});
+
+// ─── Post pin directly (global token) ────────────────────────────────────────
+app.post("/api/post-pin", async (req, res) => {
+  if (!globalToken.accessToken) return res.status(401).json({ error: "Pinterest not connected" });
+  const { boardId, title, description, imageUrl, link } = req.body;
+  if (!boardId) return res.status(400).json({ error: "Missing boardId" });
+  try {
+    const pinBody = { board_id: boardId, title: (title||"").slice(0,100), description: description||"", link: link||"" };
+    if (imageUrl) pinBody.media_source = { source_type: "image_url", url: imageUrl };
+    const r = await axios.post("https://api.pinterest.com/v5/pins", pinBody, {
+      headers: { Authorization: `Bearer ${globalToken.accessToken}`, "Content-Type": "application/json" }
+    });
+    res.json({ success: true, pin: r.data });
+  } catch (e) {
+    console.error("Post pin:", e.response?.data || e.message);
+    res.status(500).json({ error: e.response?.data?.message || "Failed to post pin" });
+  }
+});
 
 // ─── Server-side queue (in-memory + file backup) ─────────────────────────────
-const fs = require("fs");
 const QUEUE_FILE = "/tmp/amzpin_queue.json";
 let serverQueue = [];
 
@@ -69,41 +210,6 @@ app.delete("/api/queue/:id", (req, res) => {
   serverQueue = serverQueue.filter(x => x.id !== id);
   saveQueueFile();
   res.json({ ok: true, count: serverQueue.length });
-});
-
-// ─── Server-side queue (syncs across all devices) ────────────────────────────
-// in-memory, survives as long as server is up (UptimeRobot keeps it alive)
-
-app.get("/api/queue", (req, res) => {
-  res.json({ queue: serverQueue });
-});
-
-app.post("/api/queue", (req, res) => {
-  const item = req.body;
-  if (!item || !item.id) return res.status(400).json({ error: "Missing item" });
-  const existing = serverQueue.findIndex(q => q.id === item.id);
-  if (existing >= 0) serverQueue[existing] = item;
-  else serverQueue.push(item);
-  res.json({ ok: true, queue: serverQueue });
-});
-
-app.put("/api/queue/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const idx = serverQueue.findIndex(q => q.id === id);
-  if (idx < 0) return res.status(404).json({ error: "Not found" });
-  serverQueue[idx] = Object.assign(serverQueue[idx], req.body);
-  res.json({ ok: true, item: serverQueue[idx] });
-});
-
-app.delete("/api/queue/:id", (req, res) => {
-  const id = Number(req.params.id);
-  serverQueue = serverQueue.filter(q => q.id !== id);
-  res.json({ ok: true, queue: serverQueue });
-});
-
-app.delete("/api/queue", (req, res) => {
-  serverQueue = [];
-  res.json({ ok: true });
 });
 
 // ─── Image proxy (fixes Amazon CDN hotlink blocking) ─────────────────────────
