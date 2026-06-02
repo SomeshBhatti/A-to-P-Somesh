@@ -105,9 +105,18 @@ select option{background:#141414}
     <span class="topbar-title">Amazon → Pinterest Pro</span>
   </div>
   <div class="topbar-actions">
-    <button class="icon-btn" id="btnHistory" onclick="showPanel('history')">📋 History</button>
-    <button class="icon-btn" id="btnQueue" onclick="showPanel('queue')">⏰ Queue</button>
-    <button class="icon-btn" id="btnSettings" onclick="showPanel('settings')">⚙️ Settings</button>
+    <button class="icon-btn" id="btnHistory" onclick="showPanel('history')">📋</button>
+    <button class="icon-btn" id="btnQueue" onclick="showPanel('queue')">⏰</button>
+    <button class="icon-btn" id="btnSettings" onclick="showPanel('settings')">⚙️</button>
+    <button class="icon-btn" id="pinterestAuthBtn" onclick="connectPinterest()" style="background:#e60023;color:#fff;border-color:#e60023">Connect Pinterest</button>
+  </div>
+</div>
+<!-- Auth status bar -->
+<div style="width:100%;max-width:620px;padding:8px 16px 0" id="authBar" style="display:none">
+  <div style="background:#0d2b16;border:1px solid #166534;border-radius:9px;padding:10px 14px;display:flex;align-items:center;gap:8px">
+    <div style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0"></div>
+    <span style="font-size:12px;color:#4ade80;flex:1" id="authLabel">Connected to Pinterest</span>
+    <button onclick="disconnectPinterest()" style="background:none;border:none;color:#4ade80;font-size:11px;cursor:pointer;opacity:0.7">Disconnect</button>
   </div>
 </div>
 
@@ -123,7 +132,7 @@ select option{background:#141414}
   <div id="modeSingle">
     <div class="card">
       <div class="field"><label class="lbl">Amazon Product URL</label><input type="text" id="amazonUrl" placeholder="https://www.amazon.in/dp/... or amzn.to/..."/></div>
-      <div class="field"><label class="lbl">Post to Board</label><select id="boardSelect"><option value="">Select board…</option></select></div>
+      <div class="field"><label class="lbl">Post to Board</label><select id="boardSelect"><option value="">Loading boards…</option></select></div>
       <button class="btn-red" id="extractBtn">Extract & Preview →</button>
     </div>
   </div>
@@ -434,22 +443,38 @@ function injectAffiliate(url){
 }
 
 // ── AUTO STYLE ────────────────────────────────────────────────
-function detectStyle(title){
+function detectStyle(title,price,description){
   var s=loadSettings();
   if(s.defaultStyle&&s.defaultStyle!=='auto') return s.defaultStyle;
-  var t=(title||'').toLowerCase();
-  if(/phone|mobile|laptop|tablet|earphone|earbuds|speaker|camera|cable|charger|tech|electronic|gadget|smart|wifi|bluetooth/.test(t)) return 'dark';
-  if(/kitchen|cook|pan|pot|mixer|grinder|pressure|cooker|masala|spice|vessel|tawa|kadai/.test(t)) return 'natural';
-  if(/sale|deal|offer|discount|budget|affordable|cheap|percent|off|combo/.test(t)) return 'bold';
-  if(/gold|silver|diamond|pearl|luxury|premium|leather|silk|cashmere|designer|watch|perfume/.test(t)) return 'luxury';
-  if(/diwali|holi|festival|wedding|party|gift|christmas|eid|celebration|rakhi|navratri/.test(t)) return 'festive';
-  if(/plant|organic|eco|herbal|bamboo|cotton|linen|handmade|artisan/.test(t)) return 'fresh';
-  if(/beach|ocean|water|swim|travel|summer|tropical|holiday/.test(t)) return 'ocean';
-  if(/rose|pink|blush|floral|flower|women|girl|beauty|cosmetic|makeup|skincare/.test(t)) return 'rose';
-  if(/night|star|moon|sleep|dream|midnight|dark/.test(t)) return 'midnight';
-  if(/sunset|orange|warm|autumn|fall/.test(t)) return 'sunset';
-  if(/fitness|gym|yoga|sport|running|protein|supplement|exercise|weight|dumbbell|energy/.test(t)) return 'fresh';
-  if(/royal|palace|purple|violet|regal/.test(t)) return 'royal';
+  var t=((title||'')+' '+(description||'')).toLowerCase();
+  var p=parseFloat((price||'0').replace(/[^0-9.]/g,''))||0;
+  // Tech / Electronics
+  if(/(phone|mobile|iphone|android|laptop|macbook|tablet|ipad|earphone|earbuds|airpod|speaker|bluetooth|camera|dslr|charger|powerbank|router|wifi|smartwatch|gaming|keyboard|mouse|monitor|ssd|hard.disk|processor|ram|memory|pendrive|usb|hdmi|projector|drone|webcam|microphone|headphone|headset|neckband|tws|led.bulb|smart.tv|inverter|stabilizer|adapter|electric)/.test(t)) return 'dark';
+  // Beauty / Skincare
+  if(/(serum|moisturis|sunscreen|lipstick|foundation|makeup|concealer|mascara|skincare|haircare|shampoo|conditioner|hair.oil|face.wash|face.mask|lotion|toner|vitamin.c|retinol|niacinamide|hyaluronic|collagen|anti.aging|night.cream|body.lotion|deodorant|perfume|fragrance|attar|shower.gel|bath|epilator|nail.polish|hair.remov)/.test(t)) return 'rosegold';
+  // Kitchen / Cooking  
+  if(/(kitchen|cooking|kadai|tawa|pressure.cooker|cooker|mixer|grinder|blender|juicer|microwave|air.fryer|vessel|utensil|cookware|casserole|non.stick|wok|idli|dosa|chapati|roti|peeler|grater|strainer|lunch.box|flask|thermos|kettle|toaster|induction)/.test(t)) return 'natural';
+  // Fashion / Clothing
+  if(/(kurta|kurti|saree|sari|lehenga|salwar|kameez|dupatta|ethnic|clothing|apparel|shoes|sandal|sneaker|heel|boot|chappal|bag|purse|wallet|clutch|backpack|handbag|scarf|stole|jewellery|necklace|earring|bracelet|bangle|anklet|mens.wear|womens.wear|dress|gown|skirt|jeans|trouser|blazer|suit|sherwani)/.test(t)) return 'sunset';
+  // Luxury / Premium (price>2000 or luxury keywords)
+  if(p>2000||/(luxury|premium|imported|branded|designer|leather|silk|cashmere|genuine|authentic|limited.edition|handcrafted|sterling|18k|22k|24k|gold.plated|fossil|titan|casio|swarovski|michael.kors)/.test(t)) return 'luxury';
+  // Festive / Gifting
+  if(/(diwali|holi|navratri|eid|christmas|new.year|rakhi|bhai.dooj|karwa|ganesh|durga|puja|festival|festive|celebration|wedding|shaadi|engagement|anniversary|birthday|gift|hamper|return.gift|occasion)/.test(t)) return 'festive';
+  // Organic / Eco / Ayurvedic
+  if(/(organic|natural|herbal|ayurvedic|ayurveda|plant.based|vegan|eco|biodegradable|bamboo|wooden|jute|cotton|khadi|clay|terracotta|copper|brass|essential.oil|aromatherapy|diffuser|water.purifier|air.purifier)/.test(t)) return 'natural';
+  // Baby / Kids
+  if(/(baby|infant|newborn|toddler|kids|children|toy|doll|puzzle|lego|board.game|stationery|diaper|stroller|pram|cradle|crib|sippy|teether|rattle|stuffed|plush|school.bag)/.test(t)) return 'festive';
+  // Home Decor
+  if(/(decor|interior|sofa|mattress|cushion|curtain|chandelier|wall.art|painting|frame|clock|mirror|vase|plant.pot|shelf|cabinet|wardrobe|almirah|dining|bookshelf|tv.unit|carpet|rug|doormat|bedsheet|duvet|comforter|blanket|quilt)/.test(t)) return 'royal';
+  // Food / Nutrition
+  if(/(snack|chocolate|biscuit|namkeen|chips|dry.fruit|almond|cashew|walnut|pista|dates|raisin|seed|olive.oil|coconut.oil|ghee|honey|jam|pickle|sauce|chutney|green.tea|herbal.tea|nutrition|protein.powder|whey|vitamin|mineral|probiotic|omega)/.test(t)) return 'natural';
+  // Fitness / Sports
+  if(/(gym|fitness|workout|exercise|dumbbell|barbell|kettlebell|protein|whey|creatine|supplement|running|jogging|cycling|swimming|cricket|badminton|tennis|skipping|resistance.band|treadmill|yoga.mat)/.test(t)) return 'bold';
+  // Ocean / Water / Wellness
+  if(/(water.bottle|sipper|swim|pool|spa|wellness|meditation|mindfulness|journal|planner|stationery)/.test(t)) return 'ocean';
+  // Default by price
+  if(p>1500) return 'luxury';
+  if(p>0&&p<400) return 'bold';
   return 'bold';
 }
 
@@ -501,7 +526,7 @@ function renderPreview(){
   document.getElementById('ePrice').value=product.price||'';
   document.getElementById('eDesc').value=product.description||'';
   document.getElementById('eImage').value=product.imageUrl||'';
-  var style=detectStyle(product.title);
+  var style=detectStyle(product.title, product.price, product.description);
   setStyleUI(style);
   document.getElementById('autoStyleLabel').textContent='Auto: '+style;
 }
@@ -614,6 +639,16 @@ async function drawPin(design, targetCanvas, targetProduct, targetStyle){
     ctx.fillStyle=th.priceText;ctx.fillText(ptxt,bx+28,by+47);
   }
 
+  // Urgency badge — top left
+  if(design.urgencyText){
+    ctx.save();ctx.font='700 22px DM Sans,sans-serif';
+    var utxt='⚡ '+design.urgencyText.toUpperCase();
+    var uw=ctx.measureText(utxt).width+30;
+    ctx.fillStyle='rgba(0,0,0,0.55)';roundRect(ctx,22,28,uw,40,6);ctx.fill();
+    ctx.strokeStyle=th.accent;ctx.lineWidth=1.5;roundRect(ctx,22,28,uw,40,6);ctx.stroke();
+    ctx.fillStyle=th.accent;ctx.fillText(utxt,37,53);ctx.restore();
+  }
+
   // Strong gradient fade at image bottom
   var fadeStart=imgZoneH-280;
   var fadeG=ctx.createLinearGradient(0,fadeStart,0,imgZoneH+40);
@@ -630,6 +665,16 @@ async function drawPin(design, targetCanvas, targetProduct, targetStyle){
   ctx.fillRect(50,y,120,5);
   if(th.accent2){ctx.fillStyle=th.accent2;ctx.fillRect(180,y,40,5);}
   y+=24;
+
+  // Category badge
+  if(design.categoryEmoji||design.categoryLabel){
+    ctx.save();ctx.font='600 24px DM Sans,sans-serif';
+    var catTxt=(design.categoryEmoji||'')+' '+(design.categoryLabel||'');
+    var cw=ctx.measureText(catTxt).width+36,ch=44;
+    ctx.fillStyle='rgba(255,255,255,0.08)';roundRect(ctx,50,y,cw,ch,8);ctx.fill();
+    ctx.strokeStyle=th.accent;ctx.lineWidth=1.5;roundRect(ctx,50,y,cw,ch,8);ctx.stroke();
+    ctx.fillStyle=th.accent;ctx.fillText(catTxt,68,y+30);ctx.restore();y+=60;
+  }
 
   if(prod.brand){
     ctx.font='600 28px DM Sans,sans-serif';
@@ -649,13 +694,29 @@ async function drawPin(design, targetCanvas, targetProduct, targetStyle){
   tLines.slice(0,3).forEach(function(l,i){ctx.fillText(l,50,y+(i+1)*lineH);});
   y+=tLines.slice(0,3).length*lineH+20;
 
+  // Key feature — italic, accent
+  if(design.keyFeature){
+    ctx.save();ctx.font='600 36px DM Sans,sans-serif';
+    ctx.fillStyle=th.accent;
+    var kLines=wrapText(ctx,design.keyFeature,W-100,36);
+    kLines.slice(0,1).forEach(function(l,i){ctx.fillText('✦ '+l,50,y+(i+1)*48);});
+    y+=48+8;ctx.restore();
+  }
+
   // Tagline in accent color — big, bold
   if(design.tagline){
     ctx.font='700 42px DM Sans,sans-serif';
-    ctx.fillStyle=th.accent;
+    ctx.fillStyle=isLight?'#111111':th.text;
     var tlLines=wrapText(ctx,design.tagline,W-100,42);
     tlLines.slice(0,2).forEach(function(l,i){ctx.fillText(l,50,y+(i+1)*52);});
-    y+=tlLines.slice(0,2).length*52+16;
+    y+=tlLines.slice(0,2).length*52+8;
+  }
+
+  // Sub tagline
+  if(design.subTagline){
+    ctx.font='300 30px DM Sans,sans-serif';
+    ctx.fillStyle=isLight?'rgba(0,0,0,0.5)':'rgba(255,255,255,0.5)';
+    ctx.fillText(design.subTagline,50,y+38);y+=52;
   }
 
   // Thin separator
@@ -663,24 +724,26 @@ async function drawPin(design, targetCanvas, targetProduct, targetStyle){
   sepG.addColorStop(0,th.accent);sepG.addColorStop(1,'rgba(0,0,0,0)');
   ctx.fillStyle=sepG;ctx.fillRect(50,y,W-100,2);y+=20;
 
-  // Description — readable, slightly larger
-  if(prod.description){
-    ctx.font='300 32px DM Sans,sans-serif';
-    ctx.fillStyle=isLight?'rgba(0,0,0,0.55)':'rgba(255,255,255,0.6)';
-    var dLines=wrapText(ctx,prod.description,W-100,32);
-    dLines.slice(0,2).forEach(function(l,i){ctx.fillText(l,50,y+(i+1)*44);});
-    y+=dLines.slice(0,2).length*44+20;
+  // Description (SEO-optimized if available)
+  var descTxt=design.descriptionSEO||prod.description||'';
+  if(descTxt){
+    ctx.font='300 30px DM Sans,sans-serif';
+    ctx.fillStyle=isLight?'rgba(0,0,0,0.55)':'rgba(255,255,255,0.55)';
+    var dLines=wrapText(ctx,descTxt,W-100,30);
+    dLines.slice(0,2).forEach(function(l,i){ctx.fillText(l,50,y+(i+1)*42);});
+    y+=dLines.slice(0,2).length*42+16;
   }
 
-  // Hashtags — 2 rows, accent color
+  // Hashtags — 4 rows of 5, accent color
   if(prod.hashtags&&prod.hashtags.length){
-    ctx.font='500 28px DM Sans,sans-serif';
+    ctx.font='400 24px DM Sans,sans-serif';
     ctx.fillStyle=th.accent;
-    var tags=prod.hashtags.slice(0,10).map(function(h){return '#'+h;});
-    var half=Math.ceil(tags.length/2);
-    var r1=tags.slice(0,half).join('  '),r2=tags.slice(half).join('  ');
-    ctx.fillText(r1,50,y+30);y+=44;
-    ctx.fillText(r2,50,y+30);y+=56;
+    var tags=prod.hashtags.slice(0,20).map(function(h){return '#'+h;});
+    for(var ri=0;ri<Math.min(4,Math.ceil(tags.length/5));ri++){
+      var rowTags=tags.slice(ri*5,(ri+1)*5);
+      ctx.fillText(rowTags.join('  '),50,y+28);y+=36;
+    }
+    y+=14;
   }
 
   // CTA button — pill, gradient, with arrow
@@ -1028,7 +1091,62 @@ function show(id,v){var el=document.getElementById(id);if(el)el.style.display=v?
 var tt;
 function toast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(type||'ok');t.style.display='block';clearTimeout(tt);tt=setTimeout(function(){t.style.display='none';},4000);}
 
+// ── PINTEREST AUTH ────────────────────────────────────────────
+window.pinterestConnected = false;
+
+function connectPinterest(){
+  window.location.href = '/auth/pinterest';
+}
+function disconnectPinterest(){
+  fetch('/auth/disconnect',{method:'POST'}).then(function(){
+    window.pinterestConnected=false;
+    updateAuthUI({connected:false});
+    document.getElementById('boardSelect').innerHTML='<option value="">Select board…</option>';
+    ['bulkBoard','qBoard'].forEach(function(id){var s=document.getElementById(id);if(s)s.innerHTML='<option value="">Select board…</option>';});
+    toast('Disconnected from Pinterest','ok');
+  });
+}
+async function checkAuth(){
+  try{
+    var params=new URLSearchParams(location.search);
+    if(params.get('connected')==='true') toast('✅ Pinterest connected!','ok');
+    if(params.get('error')) toast('❌ Connection failed: '+params.get('error'),'err');
+    history.replaceState({},'','/');
+
+    var r=await fetch('/api/status').then(function(x){return x.json();});
+    updateAuthUI(r);
+    if(r.connected) loadPinterestBoards();
+  }catch(e){ console.log('Auth check failed',e); }
+}
+function updateAuthUI(status){
+  var btn=document.getElementById('pinterestAuthBtn');
+  var bar=document.getElementById('authBar');
+  var label=document.getElementById('authLabel');
+  window.pinterestConnected=status.connected;
+  if(status.connected){
+    if(btn){btn.textContent='✓ Pinterest';btn.style.background='#166534';btn.style.borderColor='#166534';btn.onclick=disconnectPinterest;}
+    if(bar) bar.style.display='';
+    if(label) label.textContent='Connected'+(status.username?' as @'+status.username:'');
+  }else{
+    if(btn){btn.textContent='Connect Pinterest';btn.style.background='#e60023';btn.style.borderColor='#e60023';btn.onclick=connectPinterest;}
+    if(bar) bar.style.display='none';
+  }
+}
+async function loadPinterestBoards(){
+  try{
+    var r=await fetch('/api/boards').then(function(x){return x.json();});
+    if(!r.boards||!r.boards.length) return;
+    var options='<option value="">Select board…</option>'+r.boards.map(function(b){return '<option value="'+b.id+'">'+b.name+'</option>';}).join('');
+    ['boardSelect','bulkBoard','qBoard'].forEach(function(id){var s=document.getElementById(id);if(s)s.innerHTML=options;});
+    // Also save board names to settings for queue
+    var s=loadSettings();
+    s.boards=r.boards.map(function(b){return b.name+'|'+b.id;});
+    localStorage.setItem(SK,JSON.stringify(s));
+  }catch(e){ console.log('Boards load failed',e); }
+}
+
 // ── INIT ──────────────────────────────────────────────────────
+checkAuth();
 populateBoards();
 checkQueue();
 </script>
