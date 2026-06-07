@@ -255,32 +255,73 @@ const UA_LIST = [
 function randomUA() { return UA_LIST[Math.floor(Math.random() * UA_LIST.length)]; }
 
 function getBestImageUrl($) {
-  // Method 1: data-a-dynamic-image JSON (contains multiple sizes — pick largest)
+  // Method 1: data-a-dynamic-image JSON — pick largest resolution
   const dynamicRaw = $("#landingImage").attr("data-a-dynamic-image") ||
                      $(".a-dynamic-image").first().attr("data-a-dynamic-image");
   if (dynamicRaw) {
     try {
       const imgs = JSON.parse(dynamicRaw);
       const sorted = Object.entries(imgs).sort((a, b) => (b[1][0] * b[1][1]) - (a[1][0] * a[1][1]));
-      if (sorted.length) return sorted[0][0]; // highest resolution URL
+      if (sorted.length) return sorted[0][0];
     } catch {}
   }
-  // Method 2: data-old-hires (large image)
+  // Method 2: og:image meta tag (often high quality)
+  const ogImage = $("meta[property='og:image']").attr("content") ||
+                  $("meta[name='twitter:image']").attr("content");
+  if (ogImage && ogImage.startsWith("http")) return ogImage;
+  // Method 3: data-old-hires
   const oldHires = $("#landingImage").attr("data-old-hires");
   if (oldHires && oldHires.startsWith("http")) return oldHires;
-  // Method 3: src of landing image — upgrade size in URL
+  // Method 4: src upgraded to large size
   const src = $("#landingImage").attr("src") || $(".a-dynamic-image").first().attr("src") || "";
   if (src && src.startsWith("http")) {
-    // Upgrade small images to larger size by replacing size code
-    return src.replace(/_SX[0-9]+_/, "_SX679_").replace(/_SY[0-9]+_/, "_SY679_").replace(/_AC_US[0-9]+_/, "_AC_SX679_");
+    return src.replace(/_SX[0-9]+_/, "_SX679_")
+              .replace(/_SY[0-9]+_/, "_SY679_")
+              .replace(/_AC_US[0-9]+_/, "_AC_SX679_")
+              .replace(/_SL[0-9]+_/, "_SL679_");
   }
-  // Method 4: look for any product image in the gallery
+  // Method 5: any img with data-old-hires in gallery
   let galleryUrl = "";
   $("img[data-old-hires]").each((_, el) => {
     const u = $(el).attr("data-old-hires");
     if (u && u.startsWith("http") && !galleryUrl) galleryUrl = u;
   });
   return galleryUrl;
+}
+
+// Download Amazon image and re-host on imgbb (bypasses CDN blocking permanently)
+async function reHostImage(amazonImageUrl) {
+  if (!amazonImageUrl || !process.env.IMGBB_API_KEY) return amazonImageUrl;
+  try {
+    const imgRes = await axios.get(amazonImageUrl, {
+      responseType: "arraybuffer",
+      timeout: 10000,
+      headers: {
+        "User-Agent": randomUA(),
+        "Referer": "https://www.amazon.in/",
+        "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "sec-fetch-dest": "image",
+        "sec-fetch-mode": "no-cors",
+      },
+    });
+    const base64 = Buffer.from(imgRes.data).toString("base64");
+    const FormData = require("form-data");
+    const form = new FormData();
+    form.append("key", process.env.IMGBB_API_KEY);
+    form.append("image", base64);
+    form.append("expiration", "15552000"); // 6 months
+    const uploaded = await axios.post("https://api.imgbb.com/1/upload", form, {
+      headers: form.getHeaders(),
+      timeout: 15000,
+    });
+    const hostedUrl = uploaded.data.data.url;
+    console.log("✅ Image re-hosted on imgbb:", hostedUrl.substring(0, 60));
+    return hostedUrl;
+  } catch (e) {
+    console.warn("imgbb re-host failed:", e.message, "— using proxy fallback");
+    return amazonImageUrl; // fallback to original with proxy
+  }
 }
 
 async function scrapeAmazon(url) {
@@ -416,7 +457,12 @@ Extract the product details. Use the URL hint to determine the product name. Lea
     }
   }
   if (product.imageUrl) {
-    product.proxyImageUrl = `/api/proxy-image?url=${encodeURIComponent(product.imageUrl)}`;
+    // Re-host on imgbb so it works everywhere (canvas, Pinterest, all devices)
+    const hostedUrl = await reHostImage(product.imageUrl);
+    product.hostedImageUrl = hostedUrl;
+    product.proxyImageUrl = hostedUrl !== product.imageUrl
+      ? hostedUrl  // use imgbb URL directly
+      : `/api/proxy-image?url=${encodeURIComponent(product.imageUrl)}`; // proxy fallback
   }
   res.json({ product });
 });
