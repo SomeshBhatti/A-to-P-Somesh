@@ -502,6 +502,11 @@ async function extractProduct(url){
   if(r.error) throw new Error(r.error);
   r.product.affiliateUrl=injectAffiliate(url);
   r.product.originalUrl=url;
+  // Use hosted imgbb URL as the primary image (works everywhere)
+  if(r.product.hostedImageUrl) {
+    r.product.proxyImageUrl=r.product.hostedImageUrl;
+    r.product.imageUrl=r.product.hostedImageUrl;
+  }
   return r.product;
 }
 
