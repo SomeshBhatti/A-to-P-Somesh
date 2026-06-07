@@ -502,11 +502,6 @@ async function extractProduct(url){
   if(r.error) throw new Error(r.error);
   r.product.affiliateUrl=injectAffiliate(url);
   r.product.originalUrl=url;
-  // Use hosted imgbb URL as the primary image (works everywhere)
-  if(r.product.hostedImageUrl) {
-    r.product.proxyImageUrl=r.product.hostedImageUrl;
-    r.product.imageUrl=r.product.hostedImageUrl;
-  }
   return r.product;
 }
 
@@ -519,12 +514,18 @@ function renderPreview(){
   var brand=document.getElementById('pinBrand');
   if(product.brand){brand.textContent=product.brand;brand.style.display='';}else brand.style.display='none';
   var col=document.getElementById('pinImgCol'),noImg=document.getElementById('pinNoImg');
-  var src=product.proxyImageUrl||product.imageUrl;
+  // Amazon images work fine in <img> tags — no proxy needed for preview
+  var src=product.imageUrl||product.proxyImageUrl;
   if(src){
     var img=col.querySelector('img');
     if(!img){img=document.createElement('img');col.appendChild(img);}
     img.src=src;img.alt=product.title;img.style.display='block';
-    img.onerror=function(){img.style.display='none';noImg.style.display='flex';};
+    img.referrerPolicy='no-referrer';
+    img.onerror=function(){
+      // Try without referrer policy
+      if(img.src===src){img.src='';img.removeAttribute('referrerpolicy');img.src=src;}
+      else{img.style.display='none';noImg.style.display='flex';}
+    };
     noImg.style.display='none';
   }else{var img2=col.querySelector('img');if(img2)img2.style.display='none';noImg.style.display='flex';}
   document.getElementById('eTitle').value=product.title||'';
@@ -773,7 +774,28 @@ async function drawPin(design, targetCanvas, targetProduct, targetStyle){
   canvasDataUrl=canvas.toDataURL('image/jpeg',0.94);
 }
 
-function loadImg(src){return new Promise(function(res,rej){var img=new Image();img.crossOrigin='anonymous';img.onload=function(){res(img);};img.onerror=function(){rej(new Error('failed'));};img.src=src;});}
+function loadImg(src){
+  // Try multiple approaches to load image into canvas
+  var proxies=[
+    src, // direct (works if CORS allowed)
+    'https://corsproxy.io/?'+encodeURIComponent(src),
+    'https://api.allorigins.win/raw?url='+encodeURIComponent(src),
+    'https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&url='+encodeURIComponent(src),
+  ];
+  var attempt=0;
+  return new Promise(function(res,rej){
+    function tryNext(){
+      if(attempt>=proxies.length){rej(new Error('All image sources failed'));return;}
+      var img=new Image();
+      img.crossOrigin='anonymous';
+      var url=proxies[attempt++];
+      img.onload=function(){res(img);};
+      img.onerror=function(){tryNext();};
+      img.src=url;
+    }
+    tryNext();
+  });
+}
 function wrapText(ctx,text,maxW,sz){ctx.font='bold '+sz+'px DM Sans,sans-serif';var words=(text||'').split(' '),lines=[],line='';words.forEach(function(w){var t=line?line+' '+w:w;if(ctx.measureText(t).width>maxW){if(line)lines.push(line);line=w;}else line=t;});if(line)lines.push(line);return lines;}
 function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();}
 
@@ -820,7 +842,9 @@ function buildPinUrl(imgUrl){
   var desc=[product.title,product.price,product.description].filter(Boolean).join(' — ');
   if(product.hashtags&&product.hashtags.length) desc+='\n\n'+product.hashtags.slice(0,10).map(function(h){return '#'+h;}).join(' ');
   var p=new URLSearchParams({url:affUrl,title:product.title||'',description:desc});
-  if(imgUrl) p.set('media',imgUrl);
+  // Pinterest can fetch Amazon images directly — use original URL
+  var mediaUrl=imgUrl||product.imageUrl||'';
+  if(mediaUrl) p.set('media',mediaUrl);
   return 'https://www.pinterest.com/pin/create/button/?'+p.toString();
 }
 async function openEnhancedPinterest(){
@@ -1095,6 +1119,18 @@ function reset(){product=null;canvasDataUrl='';showEdit=false;selectedSlot=-1;do
 function show(id,v){var el=document.getElementById(id);if(el)el.style.display=v?'':'none';}
 var tt;
 function toast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(type||'ok');t.style.display='block';clearTimeout(tt);tt=setTimeout(function(){t.style.display='none';},4000);}
+
+// ── IMAGE URL PROMPT ──────────────────────────────────────────
+function promptImageUrl(){
+  var url=window.prompt('Paste the product image URL (right-click image on Amazon → Copy image address):','');
+  if(!url||!url.startsWith('http')) return;
+  if(product){
+    product.imageUrl=url;
+    product.proxyImageUrl=url;
+    renderPreview();
+    toast('✓ Image updated','ok');
+  }
+}
 
 // ── PINTEREST AUTH ────────────────────────────────────────────
 window.pinterestConnected = false;
