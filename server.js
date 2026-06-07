@@ -249,8 +249,7 @@ app.get("/api/proxy-image", async (req, res) => {
 const UA_LIST = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0",
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
 ];
 function randomUA() { return UA_LIST[Math.floor(Math.random() * UA_LIST.length)]; }
 
@@ -289,40 +288,9 @@ function getBestImageUrl($) {
   return galleryUrl;
 }
 
-// Download Amazon image and re-host on imgbb (bypasses CDN blocking permanently)
-async function reHostImage(amazonImageUrl) {
-  if (!amazonImageUrl || !process.env.IMGBB_API_KEY) return amazonImageUrl;
-  try {
-    const imgRes = await axios.get(amazonImageUrl, {
-      responseType: "arraybuffer",
-      timeout: 10000,
-      headers: {
-        "User-Agent": randomUA(),
-        "Referer": "https://www.amazon.in/",
-        "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
-        "Accept-Encoding": "gzip, deflate, br",
-        "sec-fetch-dest": "image",
-        "sec-fetch-mode": "no-cors",
-      },
-    });
-    const base64 = Buffer.from(imgRes.data).toString("base64");
-    const FormData = require("form-data");
-    const form = new FormData();
-    form.append("key", process.env.IMGBB_API_KEY);
-    form.append("image", base64);
-    form.append("expiration", "15552000"); // 6 months
-    const uploaded = await axios.post("https://api.imgbb.com/1/upload", form, {
-      headers: form.getHeaders(),
-      timeout: 15000,
-    });
-    const hostedUrl = uploaded.data.data.url;
-    console.log("✅ Image re-hosted on imgbb:", hostedUrl.substring(0, 60));
-    return hostedUrl;
-  } catch (e) {
-    console.warn("imgbb re-host failed:", e.message, "— using proxy fallback");
-    return amazonImageUrl; // fallback to original with proxy
-  }
-}
+// Note: Amazon CDN blocks all server-side image requests (403)
+// Images are served directly to browser via <img> tag (works fine)
+// Canvas uses CORS proxies (handled client-side)
 
 async function scrapeAmazon(url) {
   // Follow short URLs (amzn.to) first
@@ -342,17 +310,11 @@ async function scrapeAmazon(url) {
     timeout: 12000,
     headers: {
       "User-Agent": randomUA(),
-      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-      "Accept-Language": "en-IN,en-GB,en-US;q=0.9",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "en-IN,en;q=0.9",
       "Accept-Encoding": "gzip, deflate, br",
-      "Connection": "keep-alive",
-      "Upgrade-Insecure-Requests": "1",
-      "Sec-Fetch-Dest": "document",
-      "Sec-Fetch-Mode": "navigate",
-      "Sec-Fetch-Site": "none",
-      "Cache-Control": "max-age=0",
+      "Cache-Control": "no-cache",
     },
-    maxRedirects: 5,
   });
 
   const $ = cheerio.load(html);
@@ -456,14 +418,8 @@ Extract the product details. Use the URL hint to determine the product name. Lea
       return res.status(500).json({ error: "Failed to extract product details. Try a full Amazon product URL." });
     }
   }
-  if (product.imageUrl) {
-    // Re-host on imgbb so it works everywhere (canvas, Pinterest, all devices)
-    const hostedUrl = await reHostImage(product.imageUrl);
-    product.hostedImageUrl = hostedUrl;
-    product.proxyImageUrl = hostedUrl !== product.imageUrl
-      ? hostedUrl  // use imgbb URL directly
-      : `/api/proxy-image?url=${encodeURIComponent(product.imageUrl)}`; // proxy fallback
-  }
+  // Return image URL as-is — browser <img> tags can display Amazon images fine
+  // Canvas uses client-side CORS proxies
   res.json({ product });
 });
 
