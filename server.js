@@ -19,8 +19,6 @@ app.use(session({
 
 const PORT = process.env.PORT || 3000;
 const REDIRECT_URI = process.env.REDIRECT_URI || "https://a-to-p-somesh.onrender.com/auth/callback";
-const APP_PASSWORD = process.env.APP_PASSWORD || "pinterest123";
-
 // ─── Global Pinterest token (shared across ALL devices) ───────────────────────
 const TOKEN_FILE = "/tmp/amzpin_token.json";
 let globalToken = { accessToken: null, refreshToken: null, username: null };
@@ -34,33 +32,7 @@ function saveToken() {
   try { fs.writeFileSync(TOKEN_FILE, JSON.stringify(globalToken)); } catch(e) {}
 }
 
-// ─── Password protection middleware ──────────────────────────────────────────
-const PUBLIC_PATHS = ["/auth/app-login", "/auth/app-logout", "/auth/callback", "/login.html"];
-function requireAppAuth(req, res, next) {
-  if (PUBLIC_PATHS.some(p => req.path.startsWith(p))) return next();
-  if (req.session.appAuthed) return next();
-  if (req.path.startsWith("/api/") || req.path.startsWith("/auth/")) {
-    return res.status(401).json({ error: "App not unlocked" });
-  }
-  res.sendFile(path.join(__dirname, "login.html"));
-}
-app.use(requireAppAuth);
 app.use(express.static(__dirname));
-
-// ─── App login/logout ─────────────────────────────────────────────────────────
-app.post("/auth/app-login", (req, res) => {
-  const { password } = req.body;
-  if (password === APP_PASSWORD) {
-    req.session.appAuthed = true;
-    res.json({ ok: true });
-  } else {
-    res.status(401).json({ error: "Wrong password" });
-  }
-});
-app.post("/auth/app-logout", (req, res) => {
-  req.session.destroy(() => res.json({ ok: true }));
-});
-
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
 // ─── Pinterest status (uses global token) ────────────────────────────────────
