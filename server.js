@@ -365,8 +365,45 @@ async function scrapeAmazon(url) {
   return { title, price, brand, imageUrl, description: bullets.slice(0, 3).join(". ") };
 }
 
+// ─── Gemini AI (replaces Groq) ───────────────────────────────────────────────
+async function geminiText(prompt, maxTokens = 2048) {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error("GEMINI_API_KEY not set in Render environment");
+  const r = await axios.post(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+    {
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.9, maxOutputTokens: maxTokens, responseMimeType: "application/json" }
+    },
+    { headers: { "Content-Type": "application/json" }, timeout: 30000 }
+  );
+  return r.data.candidates[0].content.parts[0].text;
+}
+
+async function geminiGenerateImage(prompt, productImageBase64, mimeType) {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error("GEMINI_API_KEY not set");
+  const parts = [{ text: prompt }];
+  if (productImageBase64) {
+    parts.push({ inlineData: { mimeType: mimeType || "image/jpeg", data: productImageBase64 } });
+  }
+  const r = await axios.post(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${key}`,
+    {
+      contents: [{ role: "user", parts }],
+      generationConfig: { responseModalities: ["IMAGE", "TEXT"], temperature: 1.0 }
+    },
+    { headers: { "Content-Type": "application/json" }, timeout: 60000 }
+  );
+  const imgPart = r.data.candidates[0].content.parts.find(p => p.inlineData);
+  if (!imgPart) throw new Error("No image in Gemini response");
+  return imgPart.inlineData.data; // base64
+}
+
+// Keep Groq as optional fallback
 async function groqCall(messages, apiKey, maxTokens = 800) {
   const key = apiKey || process.env.GROQ_API_KEY;
+  if (!key) throw new Error("No Groq key");
   const r = await axios.post(
     "https://api.groq.com/openai/v1/chat/completions",
     { model: "llama-3.3-70b-versatile", max_tokens: maxTokens, messages },
@@ -427,124 +464,131 @@ Extract the product details. Use the URL hint to determine the product name. Lea
 app.post("/api/design-pin", async (req, res) => {
   const { title, price, description, brand, style } = req.body;
 
-  const stylePersona = {
-    luxury:   "You are creating for affluent Indian buyers aged 28-45. Premium feel, exclusivity, aspirational. Tone: sophisticated, confident, tasteful. Language: refined, no slang.",
-    bold:     "You are creating a HIGH-URGENCY deal pin for value-conscious Indian shoppers. Tone: excited, urgent, can't-miss. Use FOMO, scarcity, deal language. Make them feel they'll regret missing this.",
-    minimal:  "You are creating for modern urban Indian professionals aged 22-35. Clean, intelligent, no-nonsense. Tone: calm, confident, quality-focused. Let the product speak.",
-    festive:  "You are creating for Indian festival season (Diwali/Holi/Rakhi/Wedding). Warm, celebratory, gifting-focused. Tone: joyful, generous, auspicious. Family and gifting angles work best.",
-    natural:  "You are creating for health-conscious, eco-aware Indian buyers. Organic, sustainable, wellness-focused. Tone: calm, trustworthy, mindful. Emphasize natural ingredients, sustainability, health benefits.",
-    dark:     "You are creating for tech-savvy Indian youth aged 18-30. Sleek, futuristic, premium gadget energy. Tone: cool, knowledgeable, aspirational. Spec-focused with lifestyle appeal.",
-    rosegold: "You are creating for modern Indian women aged 20-38. Elegant, feminine, stylish. Tone: warm, empowering, beautiful. Self-care, gifting for her, lifestyle aesthetics.",
-    neon:     "You are creating for young urban Indian audience aged 16-28. Bold, trendy, Gen-Z energy. Tone: hype, street-smart, FOMO-driven. Use current slang sensibility without being cringe.",
-    ocean:    "You are creating for wellness, beauty and lifestyle Indian buyers. Cool, refreshing, serene. Tone: calming, premium, self-care focused. Health and beauty products shine here.",
-    sunset:   "You are creating for aspirational Indian lifestyle buyers. Warm, travel-inspired, fashionable. Tone: dreamy, aspirational, wanderlust. Lifestyle and fashion products.",
-    royal:    "You are creating for premium gifting and jewellery Indian buyers. Grand, regal, celebratory. Tone: majestic, proud, gift-worthy. Perfect for jewellery, premium gifts, special occasions.",
-    vintage:  "You are creating for artisan, handmade and heritage Indian products. Nostalgic, warm, authentic. Tone: storytelling, craftsmanship-proud, cultural. Handmade, traditional and artisan products.",
+  const categoryDetect = (t) => {
+    t = (t || "").toLowerCase();
+    if (/phone|laptop|tablet|earphone|earbuds|speaker|camera|charger|powerbank|gadget|bluetooth|gaming|keyboard|mouse|monitor|ssd|headphone|router|wifi/.test(t)) return "Tech & Gadgets";
+    if (/kitchen|cook|pan|mixer|grinder|cooker|vessel|tawa|air.?fryer|utensil|cookware|oven/.test(t)) return "Kitchen";
+    if (/serum|moisturis|sunscreen|makeup|skincare|haircare|shampoo|lotion|perfume|beauty|cosmetic/.test(t)) return "Beauty & Skincare";
+    if (/kurta|saree|shirt|dress|shoes|bag|purse|jewellery|clothing|fashion/.test(t)) return "Fashion";
+    if (/sofa|mattress|curtain|lamp|decor|furniture|shelf|carpet|bedsheet|pillow/.test(t)) return "Home Decor";
+    if (/gym|fitness|yoga|dumbbell|protein|supplement|running|sports|exercise/.test(t)) return "Fitness & Sports";
+    if (/organic|herbal|ayurvedic|eco|bamboo|natural|essential.?oil|wellness/.test(t)) return "Natural & Organic";
+    if (/baby|kids|toy|stationery|school|children/.test(t)) return "Baby & Kids";
+    return "Lifestyle";
   };
 
-  const imageFilterMap = {
-    food:    "brightness(1.08) contrast(1.12) saturate(1.28)",
-    tech:    "brightness(0.97) contrast(1.18) saturate(0.82)",
-    fashion: "brightness(1.06) contrast(1.2) saturate(1.12)",
-    home:    "brightness(1.07) contrast(1.1) saturate(1.18)",
-    beauty:  "brightness(1.12) contrast(1.06) saturate(1.22)",
-    fitness: "brightness(1.08) contrast(1.22) saturate(1.18)",
-    baby:    "brightness(1.12) contrast(1.04) saturate(1.2)",
-    jewelry: "brightness(1.06) contrast(1.16) saturate(0.92)",
-    default: "brightness(1.05) contrast(1.1) saturate(1.12)",
-  };
+  const category = categoryDetect(title + " " + (description || ""));
+
+  const prompt = `You are an elite Pinterest Creative Director and Performance Marketer.
+Transform this Amazon product into a HIGH-CONVERTING Pinterest Pin concept.
+The output must NEVER look like an Amazon listing. Create Pinterest-native lifestyle content.
+
+Product Name: ${title}
+Brand: ${brand || "Unknown"}
+Category: ${category}
+Features: ${description || "Premium quality product"}
+Price: ${price || "Check Amazon"}
+
+GOAL: Create a pin that stops scrolling instantly, feels aspirational, creates desire, encourages Saves.
+
+HEADLINE RULES:
+- 2-5 words MAXIMUM
+- Communicates the MAIN BENEFIT, not the product name
+- Examples: Wireless Mouse → "WORK WITHOUT NOISE", Power Bank → "POWER ALL DAY", Air Fryer → "CRISPY WITHOUT OIL", Laptop Stand → "BETTER POSTURE", Coffee Maker → "CAFE AT HOME"
+- All caps or title case, punchy and memorable
+
+VISUAL EFFECTS by category:
+- Tech: productivity glow, motion trails, blue/purple ambient light
+- Kitchen: steam, food splash, warm lighting, ingredients around product
+- Beauty: soft bokeh, rose petals, glow effect, luxury vanity setting
+- Fitness: energy lines, sweat drops, gym environment, dynamic lighting
+- Home: cozy warm light, lifestyle home setting
+
+SCENE RULES:
+- Pinterest-native lifestyle setting (NOT Amazon white background)
+- Premium commercial photography style
+- Dramatic cinematic lighting
+- Product is centered and dominant (60-70% of frame)
+- Clean space for text overlay at top and bottom
+
+Return ONLY valid JSON:
+{
+  "headline": "2-5 word ALL CAPS benefit headline",
+  "subHeadline": "One line supporting benefit, max 8 words",
+  "benefits": ["Benefit 1 max 5 words", "Benefit 2 max 5 words", "Benefit 3 max 5 words"],
+  "badge": "2-3 word social proof badge",
+  "ctaText": "2-4 word save-focused CTA",
+  "image_generation_prompt": "Highly detailed image generation prompt: Pinterest ad style, 1080x1920 vertical pin, [product name] centered and dominant in frame, [lifestyle scene matching category], premium commercial product photography, dramatic cinematic lighting, [specific visual effects for this product], ultra realistic, 8K quality, no text overlay, clean composition, viral Pinterest ad aesthetic, professional advertising campaign quality, [specific colors and mood matching the ${style} style]",
+  "pinterest_description": "2-3 sentence Pinterest SEO description. Natural language, includes key benefits, price hint, and reason to save. Max 120 words.",
+  "keywords": ["12 targeted Pinterest search keywords, no # symbol, specific to this product and Indian shoppers"]
+}`;
 
   try {
-    const text = await groqCall([
-      {
-        role: "system",
-        content: `You are a world-class Pinterest Marketing Strategist, Visual Designer and Copywriter specializing in Indian e-commerce with 10+ years of experience creating viral Pinterest content.
-
-You deeply understand:
-- Pinterest India algorithm: what drives saves, click-throughs, and search discovery
-- Indian consumer psychology: value consciousness, aspiration, gifting culture, festival buying patterns, joint family dynamics
-- Proven copywriting formulas: curiosity gap, FOMO, social proof, problem-solution, aspirational storytelling
-- Pinterest SEO: it is a visual search engine — hashtags and descriptions directly drive discovery
-- Visual psychology: how colors, contrast, and text placement affect purchase intent
-
-TASK: Analyze the product deeply and return a JSON pin design that CONVERTS Indian Pinterest users into buyers.
-
-Return ONLY valid JSON, no markdown, no preamble, no explanation:
-{
-  "tagline": "THE MAIN HOOK — 7-10 words. MUST be product-specific using a proven formula. Examples of GREAT taglines: 'The Toilet Roll Holder That Holds Your Phone Too', 'Why 50,000 Indian Kitchens Swear By This Pan', 'This ₹749 Holder Solves Your Bathroom Storage Problem', 'The Gadget Your Bathroom Desperately Needs Right Now'. NEVER write generic lines like 'Must Have Product' or 'Shop Now'.",
-  "subTagline": "5-7 word supporting line — adds proof, urgency or emotional resonance. E.g. 'Best seller on Amazon India', 'Ships in 2 days', 'Perfect gift idea'",
-  "ctaText": "3-4 word urgent action phrase. E.g. 'Grab Yours Now', 'Order Before It Sells Out', 'Shop Today Only', 'Add to Cart'",
-  "categoryEmoji": "The single most perfect emoji for this product category",
-  "categoryLabel": "2-3 word ALL CAPS category. E.g. 'BATHROOM ESSENTIAL', 'TECH GADGET', 'KITCHEN UPGRADE', 'GIFT IDEA'",
-  "keyFeature": "The #1 most compelling product benefit in 5-8 words. What makes THIS product uniquely valuable to the buyer.",
-  "emotionalHook": "The transformation or feeling this product gives in 4-6 words. E.g. 'Finally, an organized bathroom', 'Cook like a professional chef'",
-  "urgencyText": "Short urgency element — choose one: 'Best Seller', 'Limited Stock', 'Deal of the Day', 'Top Rated', 'Customer Favourite', or empty string if none fits",
-  "pinAngle": "Primary psychological angle — one of: aspirational, practical, gifting, deal, lifestyle, problem-solver, trending",
-  "imageFilter": "Canvas filter string precisely matched to this product category. Use these exact filters: food/kitchen=${imageFilterMap.food}, tech/electronics=${imageFilterMap.tech}, fashion/clothing=${imageFilterMap.fashion}, home/decor=${imageFilterMap.home}, beauty/skincare=${imageFilterMap.beauty}, fitness/sports=${imageFilterMap.fitness}, baby/kids=${imageFilterMap.baby}, jewelry/accessories=${imageFilterMap.jewelry}, other=${imageFilterMap.default}",
-  "hashtags": "Array of EXACTLY 20 strings (no # symbol). Strategic mix: 3 broad reach tags (AmazonIndia, OnlineShopping, IndianShopper), 4 product-specific tags (exact product type), 3 use-case tags (how/where used), 3 audience tags (who buys this), 3 aspirational/lifestyle tags, 2 Hindi transliteration tags (Hindi words in Roman script), 2 trending Indian tags. ALL must be real searchable Pinterest India tags.",
-  "descriptionSEO": "45-65 word SEO-optimized Pinterest description. Structure: Start with main keyword naturally → describe key benefit → mention price if available → include use case → end with soft CTA. Include 3-4 naturally embedded search phrases. Must read like a human wrote it, not keyword stuffing. Example style: 'This 304 grade stainless steel toilet paper holder from Plantex does more than hold your roll — it has a built-in phone stand for your bathroom! Priced at just ₹749, it is perfect for modern bathrooms. Shop now on Amazon India.'"
-}
-
-CRITICAL: tagline must mention the actual product or its key feature. hashtags must be an array of exactly 20 strings.`
-      },
-      {
-        role: "user",
-        content: `Analyze this product and create an optimized ${style.toUpperCase()} style Pinterest pin for Indian shoppers:
-
-PRODUCT NAME: ${title}
-BRAND: ${brand || "Unknown Brand"}
-PRICE: ${price || "Check on Amazon"}
-PRODUCT DESCRIPTION: ${description || "Quality product available on Amazon India"}
-STYLE PERSONA: ${stylePersona[style] || stylePersona.bold}
-
-Think through this step by step before generating:
-1. What is this product's PRIMARY use case and who needs it most?
-2. What is the #1 pain point this product solves for Indian buyers?
-3. What emotional transformation does this product create?
-4. What copywriting angle works best for ${style} style + this specific product?
-5. Which 20 hashtags will maximize Pinterest India discovery for this exact product?
-
-Now generate the complete pin design JSON. Make the tagline SPECIFIC to this product — not generic.`
-      }
-    ], null, 1200);
-
-    let design = JSON.parse(text.replace(/```json|```/g, "").trim());
-
-    // Ensure hashtags is a proper array of strings
-    if (!Array.isArray(design.hashtags)) {
-      design.hashtags = ["AmazonIndia","OnlineShopping","IndianShopper","AmazonFinds","MustHave","ShopNow","HomeDecor","LifestyleIndia","BestDeals","IndianBuyer","DailyEssentials","QualityProducts","AffordableLuxury","SmartShopping","IndiaShoping","GiftIdeas","HomeUpgrade","BudgetBuy","TrendingIndia","ShopIndia"];
+    const text = await geminiText(prompt, 1500);
+    let design;
+    try {
+      const clean = text.replace(/```json|```/g, "").trim();
+      design = JSON.parse(clean);
+    } catch {
+      const match = text.match(/\{[\s\S]*\}/);
+      design = match ? JSON.parse(match[0]) : null;
+      if (!design) throw new Error("JSON parse failed");
     }
-    design.hashtags = design.hashtags.slice(0, 20).map(h => String(h).replace(/^#+/, "").trim());
 
-    // Ensure imageFilter is never empty
-    if (!design.imageFilter || design.imageFilter.trim() === "") {
-      design.imageFilter = imageFilterMap.default;
+    // Validate
+    if (!Array.isArray(design.benefits) || design.benefits.length < 3) {
+      design.benefits = ["Premium quality", "Best value", "Fast delivery"];
     }
+    design.benefits = design.benefits.slice(0, 3);
+    if (!Array.isArray(design.keywords)) design.keywords = [];
+    design.keywords = design.keywords.slice(0, 12).map(k => k.replace(/^#/, "").trim()).filter(Boolean);
 
     res.json({ design });
-
   } catch (e) {
-    console.error("design-pin error:", e.response?.data || e.message);
-    res.json({
-      design: {
-        tagline: `The ${title?.split(" ").slice(0,3).join(" ")} Every Indian Home Needs`,
-        subTagline: "Top rated on Amazon India",
-        ctaText: "Shop on Amazon",
-        categoryEmoji: "🛍️",
-        categoryLabel: "AMAZON FIND",
-        keyFeature: "Premium quality at unbeatable price",
-        emotionalHook: "Upgrade your space today",
-        urgencyText: "Best Seller",
-        pinAngle: "practical",
-        imageFilter: imageFilterMap.default,
-        hashtags: ["AmazonIndia","OnlineShopping","IndianShopper","AmazonFinds","MustHave","ShopNow","HomeDecor","LifestyleIndia","BestDeals","IndianBuyer","DailyEssentials","QualityProducts","AffordableLuxury","SmartShopping","IndiaShoping","GiftIdeas","HomeUpgrade","BudgetBuy","TrendingIndia","ShopIndia"],
-        descriptionSEO: `${title} is a must-have product available on Amazon India${price ? " at just " + price : ""}. ${description ? description.slice(0, 80) : "Premium quality, trusted by thousands of Indian buyers"}. Order now and get fast delivery!`
-      }
-    });
+    console.error("design-pin (Gemini):", e.response?.data || e.message);
+    // Fallback
+    res.json({ design: {
+      headline: "MUST HAVE",
+      subHeadline: "Trusted by thousands of shoppers",
+      benefits: ["Premium quality", "Best value for money", "Fast Amazon delivery"],
+      badge: "Top Rated",
+      ctaText: "Save This",
+      image_generation_prompt: `Pinterest ad style vertical pin, ${title} centered, premium commercial photography, dramatic lighting, ultra realistic`,
+      pinterest_description: `${title} - available on Amazon India. ${price ? "Priced at " + price + "." : ""} Premium quality with fast delivery.`,
+      keywords: ["AmazonIndia","OnlineShopping","IndianShopper","MustHave","BestDeals","TopRated","AmazonFinds","SmartShopping","QualityProducts","LifestyleIndia","TrendingNow","HomeEssentials"]
+    }});
   }
 });
 
-// ─── Upload image to imgbb (uses IMGBB_API_KEY from Render env) ───────────────
+// ─── Generate lifestyle scene via Gemini image generation ─────────────────────
+app.post("/api/generate-scene", async (req, res) => {
+  const { imagePrompt, productImageUrl } = req.body;
+  if (!imagePrompt) return res.status(400).json({ error: "Missing imagePrompt" });
+
+  // Fetch product image server-side and convert to base64
+  let productImageBase64 = null, mimeType = "image/jpeg";
+  if (productImageUrl) {
+    try {
+      const imgRes = await axios.get(productImageUrl, {
+        responseType: "arraybuffer", timeout: 10000,
+        headers: { "User-Agent": randomUA(), "Referer": "https://www.amazon.in/" }
+      });
+      productImageBase64 = Buffer.from(imgRes.data).toString("base64");
+      mimeType = imgRes.headers["content-type"]?.split(";")[0] || "image/jpeg";
+      console.log("✅ Product image fetched for scene gen, size:", imgRes.data.byteLength);
+    } catch (e) { console.warn("Could not fetch product image:", e.message); }
+  }
+
+  try {
+    const base64 = await geminiGenerateImage(imagePrompt, productImageBase64, mimeType);
+    res.json({ imageBase64: base64, mimeType: "image/png" });
+  } catch (e) {
+    console.error("generate-scene:", e.response?.data || e.message);
+    res.status(500).json({ error: "Scene generation failed: " + (e.message || "Unknown error") });
+  }
+});
+
+
 app.post("/api/upload-image", async (req, res) => {
   const { base64 } = req.body;
   if (!base64) return res.status(400).json({ error: "Missing base64" });
