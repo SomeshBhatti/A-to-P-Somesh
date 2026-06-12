@@ -555,22 +555,56 @@ function toggleEdit(){showEdit=!showEdit;document.getElementById('editFields').s
 // ── DESIGN ────────────────────────────────────────────────────
 async function startDesign(){
   show('previewCard',false);show('aiState',true);
-  var msgs=['Analyzing product…','Choosing palette…','Writing tagline…','Generating hashtags…','Rendering pin…'];
-  var mi=0;var iv=setInterval(function(){mi=(mi+1)%msgs.length;document.getElementById('aiMsg').textContent=msgs[mi];},1100);
+  var setMsg=function(m){document.getElementById('aiMsg').textContent=m;};
+
   try{
-    var r=await fetch('/api/design-pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:product.title,price:product.price,description:product.description,brand:product.brand,style:selectedStyle})}).then(function(x){return x.json();});
-    clearInterval(iv);
+    // Step 1: Get Pinterest-native content from Gemini
+    setMsg('✨ Gemini is crafting your pin concept…');
+    var r=await fetch('/api/design-pin',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({title:product.title,price:product.price,description:product.description,brand:product.brand,style:selectedStyle})
+    }).then(function(x){return x.json();});
     if(r.error) throw new Error(r.error);
-    if(r.design.hashtags&&r.design.hashtags.length){
-      product.hashtags=r.design.hashtags;
+    var design=r.design;
+
+    // Update keywords/hashtags in preview
+    if(design.keywords&&design.keywords.length){
+      product.hashtags=design.keywords;
       var tagsEl=document.getElementById('pinTags');
-      tagsEl.textContent=r.design.hashtags.map(function(h){return '#'+h;}).join(' ');
+      tagsEl.textContent=design.keywords.map(function(h){return '#'+h;}).join(' ');
       tagsEl.style.display='';
     }
-    document.getElementById('aiMsg').textContent='Rendering canvas…';
-    await drawPin(r.design);
+
+    // Step 2: Generate lifestyle scene via Gemini image generation
+    var sceneBase64=null;
+    if(design.image_generation_prompt){
+      setMsg('🎨 Generating lifestyle scene with AI…');
+      try{
+        var sceneRes=await fetch('/api/generate-scene',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            imagePrompt:design.image_generation_prompt,
+            productImageUrl:product.proxyImageUrl||product.imageUrl||''
+          })
+        }).then(function(x){return x.json();});
+        if(sceneRes.imageBase64) sceneBase64=sceneRes.imageBase64;
+        if(sceneBase64) setMsg('✅ Scene generated! Rendering canvas…');
+        else setMsg('⚠️ Using product image instead…');
+      }catch(e){
+        console.warn('Scene gen failed:',e.message);
+        setMsg('Rendering with product image…');
+      }
+    }
+
+    // Step 3: Draw the final pin
+    setMsg('🖼️ Composing final pin…');
+    await drawPin(design, null, null, null, sceneBase64);
     show('aiState',false);show('canvasWrap',true);
-  }catch(e){clearInterval(iv);show('aiState',false);show('previewCard',true);toast('❌ '+(e.message||'Design failed'),'err');}
+
+  }catch(e){
+    show('aiState',false);show('previewCard',true);
+    toast('❌ '+(e.message||'Design failed — check GEMINI_API_KEY in Render'),'err');
+  }
 }
 
 // ── THEMES (12 presets) ───────────────────────────────────────
@@ -590,188 +624,237 @@ var THEMES={
 };
 
 // ── CANVAS 1080×1920 — Enhanced Design Engine ─────────────────
-async function drawPin(design, targetCanvas, targetProduct, targetStyle){
+async function drawPin(design, targetCanvas, targetProduct, targetStyle, sceneBase64){
   var canvas=targetCanvas||document.getElementById('pinCanvas');
   var ctx=canvas.getContext('2d');
   var W=1080,H=1920;canvas.width=W;canvas.height=H;
   var th=THEMES[targetStyle||selectedStyle]||THEMES.bold;
   var prod=targetProduct||product;
-  var isLight=targetStyle==='minimal';
+  var isLight=(targetStyle||selectedStyle)==='minimal';
+  var P=54;
 
-  // Background gradient
+  // ══════════════════════════════════════════════════════════
+  // MODE A: AI-generated lifestyle scene from Gemini
+  // ══════════════════════════════════════════════════════════
+  if(sceneBase64){
+    // Draw the full Gemini-generated scene as background
+    try{
+      var sceneImg=await loadImgFromBase64(sceneBase64);
+      // Cover-fit the scene to full canvas
+      var sc=Math.max(W/sceneImg.width,H/sceneImg.height);
+      var sw=sceneImg.width*sc,sh=sceneImg.height*sc;
+      ctx.drawImage(sceneImg,(W-sw)/2,(H-sh)/2,sw,sh);
+    }catch(e){console.warn('scene draw failed',e);sceneBase64=null;}
+
+    if(sceneBase64){
+      // Top gradient — for headline readability
+      var topG=ctx.createLinearGradient(0,0,0,420);
+      topG.addColorStop(0,'rgba(0,0,0,0.72)');
+      topG.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=topG;ctx.fillRect(0,0,W,420);
+
+      // Bottom gradient — for benefits/CTA readability
+      var botG=ctx.createLinearGradient(0,H-680,0,H);
+      botG.addColorStop(0,'rgba(0,0,0,0)');
+      botG.addColorStop(0.4,'rgba(0,0,0,0.75)');
+      botG.addColorStop(1,'rgba(0,0,0,0.92)');
+      ctx.fillStyle=botG;ctx.fillRect(0,H-680,W,680);
+
+      // ── Price badge — top right ──────────────────────────
+      if(prod.price){
+        ctx.font='bold 36px DM Sans,sans-serif';
+        var pw=ctx.measureText(prod.price).width+48,ph=62,px=W-pw-20,py=22;
+        var pg=ctx.createLinearGradient(px,py,px+pw,py+ph);
+        pg.addColorStop(0,th.accent);pg.addColorStop(1,th.priceBg||th.accent);
+        ctx.fillStyle=pg;roundRect(ctx,px,py,pw,ph,ph/2);ctx.fill();
+        ctx.fillStyle='rgba(255,255,255,0.18)';roundRect(ctx,px+4,py+4,pw-8,26,ph/2);ctx.fill();
+        ctx.fillStyle=th.priceText;ctx.fillText(prod.price,px+24,py+41);
+      }
+
+      // ── Badge — top left ─────────────────────────────────
+      if(design&&design.badge){
+        ctx.save();ctx.font='700 20px DM Sans,sans-serif';
+        var btxt=design.badge.toUpperCase().substring(0,18);
+        var bw2=ctx.measureText(btxt).width+28;
+        ctx.fillStyle='rgba(0,0,0,0.6)';roundRect(ctx,18,22,bw2,36,5);ctx.fill();
+        ctx.strokeStyle=th.accent;ctx.lineWidth=1.5;roundRect(ctx,18,22,bw2,36,5);ctx.stroke();
+        ctx.fillStyle=th.accent;ctx.fillText(btxt,32,43);ctx.restore();
+      }
+
+      // ── HEADLINE — top area, over dark gradient ──────────
+      var headline=design&&design.headline?design.headline.toUpperCase():'';
+      if(headline){
+        var hlen=headline.length;
+        var hsz=hlen<=10?110:hlen<=16?90:hlen<=24?76:64;
+        ctx.font='900 '+hsz+'px DM Sans,sans-serif';
+        // Drop shadow for visibility
+        ctx.shadowColor='rgba(0,0,0,0.8)';ctx.shadowBlur=20;ctx.shadowOffsetY=4;
+        ctx.fillStyle='#ffffff';
+        var hLines=wrapText(ctx,headline,W-P*2,hsz);
+        var hy=110;
+        hLines.slice(0,2).forEach(function(l,i){
+          ctx.fillText(l,P,hy+(i+1)*(hsz+12));
+        });
+        ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+      }
+
+      // ── BOTTOM CONTENT ZONE ──────────────────────────────
+      var y=H-620;
+
+      // Accent bar
+      ctx.fillStyle=th.accent;ctx.fillRect(P,y,70,4);y+=20;
+
+      // Subheadline
+      if(design&&design.subHeadline){
+        ctx.font='300 28px DM Sans,sans-serif';
+        ctx.fillStyle='rgba(255,255,255,0.7)';
+        ctx.fillText((design.subHeadline||'').substring(0,55),P,y+28);y+=46;
+      }
+
+      // 3 benefit bullets
+      var benefits=design&&design.benefits?design.benefits:[];
+      ctx.font='600 30px DM Sans,sans-serif';
+      benefits.slice(0,3).forEach(function(b){
+        if(y>H-170) return;
+        // Circle checkmark
+        ctx.save();
+        ctx.fillStyle=th.accent;
+        ctx.beginPath();ctx.arc(P+16,y+14,18,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#000';ctx.font='700 20px DM Sans,sans-serif';
+        ctx.fillText('✓',P+8,y+21);ctx.restore();
+        // Text
+        ctx.shadowColor='rgba(0,0,0,0.6)';ctx.shadowBlur=8;
+        ctx.font='600 30px DM Sans,sans-serif';
+        ctx.fillStyle='#ffffff';
+        ctx.fillText(b.substring(0,34),P+44,y+20);
+        ctx.shadowColor='transparent';ctx.shadowBlur=0;
+        y+=46;
+      });
+      y+=8;
+
+      // CTA pill
+      if(design&&design.ctaText&&y<H-80){
+        ctx.font='700 30px DM Sans,sans-serif';
+        var ctaTxt=design.ctaText;
+        var ctaW=Math.min(ctx.measureText(ctaTxt).width+72,W-P*2),ctaH=64;
+        var cg=ctx.createLinearGradient(P,y,P+ctaW,y+ctaH);
+        cg.addColorStop(0,th.accent);cg.addColorStop(1,th.ctaBg||th.accent);
+        ctx.fillStyle=cg;roundRect(ctx,P,y,ctaW,ctaH,ctaH/2);ctx.fill();
+        ctx.fillStyle='rgba(255,255,255,0.2)';roundRect(ctx,P+4,y+4,ctaW-8,28,34);ctx.fill();
+        ctx.fillStyle=th.ctaText||'#fff';ctx.fillText(ctaTxt,P+36,y+42);
+      }
+
+      // Watermark
+      ctx.font='400 20px DM Sans,sans-serif';
+      ctx.fillStyle='rgba(255,255,255,0.18)';
+      ctx.fillText('amazon.com',P,H-28);
+
+      canvasDataUrl=canvas.toDataURL('image/jpeg',0.94);
+      return;
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // MODE B: Gradient background + product image (fallback)
+  // ══════════════════════════════════════════════════════════
   var bg=ctx.createLinearGradient(0,0,0,H);
-  bg.addColorStop(0,th.bgFrom);bg.addColorStop(0.5,th.bgTo);bg.addColorStop(1,th.bgFrom);
+  bg.addColorStop(0,th.bgFrom);bg.addColorStop(1,th.bgTo);
   ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
 
-  // Subtle texture dots for some themes
-  if(th.deco==='stars'||th.deco==='neon'){
-    ctx.fillStyle='rgba(255,255,255,0.03)';
-    for(var d=0;d<120;d++){
-      var rx=Math.random()*W,ry=Math.random()*H,rs=Math.random()*2+0.5;
-      ctx.beginPath();ctx.arc(rx,ry,rs,0,Math.PI*2);ctx.fill();
-    }
-  }
-
-  // Image zone = top 54%
-  var imgZoneH=Math.round(H*0.54);
+  var imgH=Math.round(H*0.58);
   var src=prod.proxyImageUrl||prod.imageUrl;
-
   if(src){
     try{
-      var img=await loadImg(src);
-      // Draw subtle shadow behind product
-      var pad=50;var maxW=W-pad*2;var maxH=imgZoneH-pad*2;
-      var scale=Math.min(maxW/img.width,maxH/img.height)*0.92;
-      var dw=img.width*scale,dh=img.height*scale;
-      var dx=(W-dw)/2,dy=pad+(maxH-dh)/2+20;
-      // Drop shadow
-      ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=60;ctx.shadowOffsetY=20;
-      if(design.imageFilter)ctx.filter=design.imageFilter;
-      ctx.drawImage(img,dx,dy,dw,dh);
+      var img2=await loadImg(src);
+      var ip=24,sc2=Math.min((W-ip*2)/img2.width,(imgH-ip*2)/img2.height);
+      var dw=img2.width*sc2,dh=img2.height*sc2;
+      var dx=(W-dw)/2,dy=ip+(imgH-ip*2-dh)/2;
+      ctx.shadowColor='rgba(0,0,0,0.4)';ctx.shadowBlur=40;ctx.shadowOffsetY=12;
+      if(design&&design.imageFilter)ctx.filter=design.imageFilter;
+      ctx.drawImage(img2,dx,dy,dw,dh);
       ctx.filter='none';ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
-    }catch(e){console.warn('img',e);}
+    }catch(e){console.warn('product img fail',e);}
   }
 
-  // Price badge — top right, pill shape with accent gradient
   if(prod.price){
-    ctx.font='bold 40px DM Sans,sans-serif';
-    var ptxt=prod.price;
-    var bw=ctx.measureText(ptxt).width+56,bh=72,bx=W-bw-28,by=28;
-    var pGrad=ctx.createLinearGradient(bx,by,bx+bw,by+bh);
-    pGrad.addColorStop(0,th.accent);pGrad.addColorStop(1,th.accent2||th.accent);
-    ctx.fillStyle=pGrad;roundRect(ctx,bx,by,bw,bh,bh/2);ctx.fill();
-    // Inner highlight
-    ctx.fillStyle='rgba(255,255,255,0.15)';roundRect(ctx,bx+4,by+4,bw-8,bh/2-4,bh/2);ctx.fill();
-    ctx.fillStyle=th.priceText;ctx.fillText(ptxt,bx+28,by+47);
+    ctx.font='bold 36px DM Sans,sans-serif';
+    var pw2=ctx.measureText(prod.price).width+48,ph2=62,px2=W-pw2-20,py2=20;
+    var pg2=ctx.createLinearGradient(px2,py2,px2+pw2,py2+ph2);
+    pg2.addColorStop(0,th.accent);pg2.addColorStop(1,th.priceBg||th.accent);
+    ctx.fillStyle=pg2;roundRect(ctx,px2,py2,pw2,ph2,ph2/2);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.18)';roundRect(ctx,px2+4,py2+4,pw2-8,26,ph2/2);ctx.fill();
+    ctx.fillStyle=th.priceText;ctx.fillText(prod.price,px2+24,py2+41);
+  }
+  if(design&&design.badge){
+    ctx.save();ctx.font='700 20px DM Sans,sans-serif';
+    var bt2=design.badge.toUpperCase().substring(0,18);
+    var bw3=ctx.measureText(bt2).width+28;
+    ctx.fillStyle='rgba(0,0,0,0.6)';roundRect(ctx,18,22,bw3,36,5);ctx.fill();
+    ctx.strokeStyle=th.accent;ctx.lineWidth=1.5;roundRect(ctx,18,22,bw3,36,5);ctx.stroke();
+    ctx.fillStyle=th.accent;ctx.fillText(bt2,32,43);ctx.restore();
   }
 
-  // Urgency badge — top left
-  if(design.urgencyText){
-    ctx.save();ctx.font='700 22px DM Sans,sans-serif';
-    var utxt='⚡ '+design.urgencyText.toUpperCase();
-    var uw=ctx.measureText(utxt).width+30;
-    ctx.fillStyle='rgba(0,0,0,0.55)';roundRect(ctx,22,28,uw,40,6);ctx.fill();
-    ctx.strokeStyle=th.accent;ctx.lineWidth=1.5;roundRect(ctx,22,28,uw,40,6);ctx.stroke();
-    ctx.fillStyle=th.accent;ctx.fillText(utxt,37,53);ctx.restore();
-  }
+  var fadeY=imgH-220;
+  var fg2=ctx.createLinearGradient(0,fadeY,0,imgH+10);
+  fg2.addColorStop(0,'rgba(0,0,0,0)');fg2.addColorStop(1,th.overlayEnd||'rgba(0,0,0,0.97)');
+  ctx.fillStyle=fg2;ctx.fillRect(0,fadeY,W,imgH+10-fadeY);
 
-  // Strong gradient fade at image bottom
-  var fadeStart=imgZoneH-280;
-  var fadeG=ctx.createLinearGradient(0,fadeStart,0,imgZoneH+40);
-  fadeG.addColorStop(0,'rgba(0,0,0,0)');
-  fadeG.addColorStop(0.6,isLight?'rgba(248,246,243,0.5)':'rgba(0,0,0,0.3)');
-  fadeG.addColorStop(1,th.overlayEnd);
-  ctx.fillStyle=fadeG;ctx.fillRect(0,fadeStart,W,imgZoneH+40-fadeStart);
+  var y2=imgH+28;
+  ctx.fillStyle=th.accent;ctx.fillRect(P,y2,70,4);y2+=20;
+  if(prod.brand){ctx.font='500 24px DM Sans,sans-serif';ctx.fillStyle=th.subtext||'rgba(255,255,255,0.5)';ctx.fillText(prod.brand.toUpperCase().substring(0,25),P,y2+20);y2+=38;}
 
-  // === CONTENT ZONE ===
-  var y=imgZoneH+20;
+  var hl2=design&&design.headline?design.headline.toUpperCase():prod.title||'';
+  var hlen2=hl2.length;
+  var hsz2=hlen2<16?78:hlen2<28?66:hlen2<40?56:48;
+  ctx.font='900 '+hsz2+'px DM Sans,sans-serif';ctx.fillStyle=th.text||'#fff';
+  var hL2=wrapText(ctx,hl2,W-P*2,hsz2);
+  hL2.slice(0,3).forEach(function(l,i){ctx.fillText(l,P,y2+(i+1)*(hsz2+8));});
+  y2+=hL2.slice(0,3).length*(hsz2+8)+14;
 
-  // Decorative accent line + brand
-  ctx.fillStyle=th.accent;
-  ctx.fillRect(50,y,120,5);
-  if(th.accent2){ctx.fillStyle=th.accent2;ctx.fillRect(180,y,40,5);}
-  y+=24;
-
-  // Category badge
-  if(design.categoryEmoji||design.categoryLabel){
-    ctx.save();ctx.font='600 24px DM Sans,sans-serif';
-    var catTxt=(design.categoryEmoji||'')+' '+(design.categoryLabel||'');
-    var cw=ctx.measureText(catTxt).width+36,ch=44;
-    ctx.fillStyle='rgba(255,255,255,0.08)';roundRect(ctx,50,y,cw,ch,8);ctx.fill();
-    ctx.strokeStyle=th.accent;ctx.lineWidth=1.5;roundRect(ctx,50,y,cw,ch,8);ctx.stroke();
-    ctx.fillStyle=th.accent;ctx.fillText(catTxt,68,y+30);ctx.restore();y+=60;
-  }
-
-  if(prod.brand){
-    ctx.font='600 28px DM Sans,sans-serif';
-    var brtxt=prod.brand.toUpperCase();
-    ctx.fillStyle=th.subtext;
-    ctx.fillText(brtxt,50,y+24);
-    y+=48;
-  }
-
-  // Dynamic title size based on length
-  var titleLen=(prod.title||'').length;
-  var titleSz=titleLen<30?88:titleLen<50?76:titleLen<80?66:58;
-  ctx.font='800 '+titleSz+'px DM Sans,sans-serif';
-  ctx.fillStyle=th.text;
-  var tLines=wrapText(ctx,prod.title||'',W-100,titleSz);
-  var lineH=titleSz+12;
-  tLines.slice(0,3).forEach(function(l,i){ctx.fillText(l,50,y+(i+1)*lineH);});
-  y+=tLines.slice(0,3).length*lineH+20;
-
-  // Key feature — italic, accent
-  if(design.keyFeature){
-    ctx.save();ctx.font='600 36px DM Sans,sans-serif';
-    ctx.fillStyle=th.accent;
-    var kLines=wrapText(ctx,design.keyFeature,W-100,36);
-    kLines.slice(0,1).forEach(function(l,i){ctx.fillText('✦ '+l,50,y+(i+1)*48);});
-    y+=48+8;ctx.restore();
-  }
-
-  // Tagline in accent color — big, bold
-  if(design.tagline){
-    ctx.font='700 42px DM Sans,sans-serif';
-    ctx.fillStyle=isLight?'#111111':th.text;
-    var tlLines=wrapText(ctx,design.tagline,W-100,42);
-    tlLines.slice(0,2).forEach(function(l,i){ctx.fillText(l,50,y+(i+1)*52);});
-    y+=tlLines.slice(0,2).length*52+8;
-  }
-
-  // Sub tagline
-  if(design.subTagline){
-    ctx.font='300 30px DM Sans,sans-serif';
-    ctx.fillStyle=isLight?'rgba(0,0,0,0.5)':'rgba(255,255,255,0.5)';
-    ctx.fillText(design.subTagline,50,y+38);y+=52;
-  }
-
-  // Thin separator
-  var sepG=ctx.createLinearGradient(50,y,W-50,y);
-  sepG.addColorStop(0,th.accent);sepG.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=sepG;ctx.fillRect(50,y,W-100,2);y+=20;
-
-  // Description (SEO-optimized if available)
-  var descTxt=design.descriptionSEO||prod.description||'';
-  if(descTxt){
-    ctx.font='300 30px DM Sans,sans-serif';
+  if(design&&design.subHeadline&&y2<H-380){
+    ctx.font='300 28px DM Sans,sans-serif';
     ctx.fillStyle=isLight?'rgba(0,0,0,0.55)':'rgba(255,255,255,0.55)';
-    var dLines=wrapText(ctx,descTxt,W-100,30);
-    dLines.slice(0,2).forEach(function(l,i){ctx.fillText(l,50,y+(i+1)*42);});
-    y+=dLines.slice(0,2).length*42+16;
+    ctx.fillText((design.subHeadline||'').substring(0,55),P,y2+30);y2+=48;
   }
 
-  // Hashtags — 4 rows of 5, accent color
-  if(prod.hashtags&&prod.hashtags.length){
-    ctx.font='400 24px DM Sans,sans-serif';
-    ctx.fillStyle=th.accent;
-    var tags=prod.hashtags.slice(0,20).map(function(h){return '#'+h;});
-    for(var ri=0;ri<Math.min(4,Math.ceil(tags.length/5));ri++){
-      var rowTags=tags.slice(ri*5,(ri+1)*5);
-      ctx.fillText(rowTags.join('  '),50,y+28);y+=36;
-    }
-    y+=14;
+  var sg2=ctx.createLinearGradient(P,y2,W-P,y2);
+  sg2.addColorStop(0,th.accent);sg2.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=sg2;ctx.fillRect(P,y2,W-P*2,2);y2+=20;
+
+  var bens=design&&design.benefits?design.benefits:[];
+  bens.slice(0,3).forEach(function(b){
+    if(y2>H-200) return;
+    ctx.save();ctx.fillStyle=th.accent;ctx.beginPath();ctx.arc(P+16,y2+14,18,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=isLight?th.bgFrom:'#000';ctx.font='700 20px DM Sans,sans-serif';ctx.fillText('✓',P+8,y2+21);ctx.restore();
+    ctx.font='500 30px DM Sans,sans-serif';ctx.fillStyle=th.text||'#fff';
+    ctx.fillText(b.substring(0,34),P+44,y2+20);y2+=48;
+  });
+  y2+=8;
+
+  if(design&&design.ctaText&&y2<H-90){
+    ctx.font='700 30px DM Sans,sans-serif';
+    var ctaTxt2=design.ctaText;
+    var ctaW2=Math.min(ctx.measureText(ctaTxt2).width+72,W-P*2),ctaH2=64;
+    var cg2=ctx.createLinearGradient(P,y2,P+ctaW2,y2+ctaH2);
+    cg2.addColorStop(0,th.accent);cg2.addColorStop(1,th.ctaBg||th.accent);
+    ctx.fillStyle=cg2;roundRect(ctx,P,y2,ctaW2,ctaH2,ctaH2/2);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.2)';roundRect(ctx,P+4,y2+4,ctaW2-8,28,34);ctx.fill();
+    ctx.fillStyle=th.ctaText||'#fff';ctx.fillText(ctaTxt2,P+36,y2+42);
   }
-
-  // CTA button — pill, gradient, with arrow
-  if(design.ctaText&&y<H-120){
-    ctx.font='700 38px DM Sans,sans-serif';
-    var ctaTxt=design.ctaText+' →';
-    var ctaW=ctx.measureText(ctaTxt).width+90,ctaH=82;
-    var ctaGrad=ctx.createLinearGradient(50,y,50+ctaW,y+ctaH);
-    ctaGrad.addColorStop(0,th.accent);ctaGrad.addColorStop(1,th.accent2||th.accent);
-    ctx.fillStyle=ctaGrad;roundRect(ctx,50,y,ctaW,ctaH,ctaH/2);ctx.fill();
-    // Highlight
-    ctx.fillStyle='rgba(255,255,255,0.18)';roundRect(ctx,54,y+4,ctaW-8,ctaH/2-4,40);ctx.fill();
-    ctx.fillStyle=th.ctaText;ctx.fillText(ctaTxt,95,y+53);
-    y+=ctaH+20;
-  }
-
-  // Bottom brand watermark
-  ctx.font='400 24px DM Sans,sans-serif';
-  ctx.fillStyle=isLight?'rgba(0,0,0,0.25)':'rgba(255,255,255,0.2)';
-  ctx.fillText('amazon.com',50,H-40);
-
+  ctx.font='400 20px DM Sans,sans-serif';
+  ctx.fillStyle=isLight?'rgba(0,0,0,0.2)':'rgba(255,255,255,0.18)';
+  ctx.fillText('amazon.com',P,H-32);
   canvasDataUrl=canvas.toDataURL('image/jpeg',0.94);
+}
+
+// Load image from base64 string
+function loadImgFromBase64(base64, mimeType){
+  return new Promise(function(res,rej){
+    var img=new Image();
+    img.onload=function(){res(img);};
+    img.onerror=function(){rej(new Error('base64 img failed'));};
+    img.src='data:'+(mimeType||'image/png')+';base64,'+base64;
+  });
 }
 
 function loadImg(src){
@@ -818,10 +901,17 @@ async function designAndQueue(){
   try{
     var r=await fetch('/api/design-pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:product.title,price:product.price,description:product.description,brand:product.brand,style:selectedStyle})}).then(function(x){return x.json();});
     var tags=r.design&&r.design.hashtags?r.design.hashtags:product.hashtags||[];
-    // Draw on offscreen canvas
+    // Generate scene then draw on offscreen canvas
+    var sceneB64=null;
+    if(r.design.image_generation_prompt){
+      try{
+        var sr=await fetch('/api/generate-scene',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({imagePrompt:r.design.image_generation_prompt,productImageUrl:product.proxyImageUrl||product.imageUrl||''})}).then(function(x){return x.json();});
+        if(sr.imageBase64) sceneB64=sr.imageBase64;
+      }catch(e){console.warn('bg scene gen failed',e.message);}
+    }
     var offCanvas=document.createElement('canvas');
     var offProduct=Object.assign({},product,{hashtags:tags});
-    await drawPin(r.design,offCanvas,offProduct,selectedStyle);
+    await drawPin(r.design,offCanvas,offProduct,selectedStyle,sceneB64);
     var b64=offCanvas.toDataURL('image/jpeg',0.92);
     // Upload to imgbb
     var upR=await fetch('/api/upload-image',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({base64:b64})}).then(function(x){return x.json();});
