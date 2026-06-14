@@ -163,11 +163,38 @@ function injectTag(url, tag) {
   catch { return url + (url.includes("?") ? "&" : "?") + "tag=" + t; }
 }
 
-// ─── Groq — product intelligence (cheap, fast) ───────────────────────────────
-async function analyzeWithGroq(product) {
+// ─── Groq with retry + Gemini fallback ───────────────────────────────────────
+async function callGroqWithRetry(prompt, retries = 3) {
   const key = process.env.GROQ_API_KEY;
   if (!key) throw new Error("GROQ_API_KEY not set");
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const r = await axios.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          model: "llama-3.3-70b-versatile",
+          max_tokens: 1200,
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" }
+        },
+        { headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, timeout: 30000 }
+      );
+      return JSON.parse(r.data.choices[0].message.content);
+    } catch(e) {
+      const status = e.response?.status;
+      const isRateLimit = status === 429 || status === 503;
+      if (isRateLimit && attempt < retries - 1) {
+        const wait = Math.pow(2, attempt + 1) * 3000; // 6s, 12s
+        console.log(`Groq rate limit (${status}), waiting ${wait/1000}s before retry ${attempt+2}/${retries}`);
+        await new Promise(r => setTimeout(r, wait));
+        continue;
+      }
+      throw e;
+    }
+  }
+}
 
+async function analyzeWithGroq(product) {
   const isIndia = (product.affiliateUrl || "").includes("amazon.in");
 
   const prompt = `You are an expert affiliate marketer specializing in ${isIndia ? "Indian" : "global"} e-commerce content.
@@ -183,38 +210,47 @@ Return ONLY valid JSON, no markdown:
   "category": "one of: Tech, Kitchen, Beauty, Fashion, Home, Fitness, Baby, Food, Organic, Lifestyle",
   "subCategory": "specific subcategory",
   "targetAudience": {
-    "primary": "2-3 word buyer description e.g. Work From Home Professionals",
+    "primary": "2-3 word buyer description",
     "ageRange": "e.g. 25-40",
     "interests": ["interest1","interest2","interest3"]
   },
-  "buyerPersona": "One sentence describing the ideal buyer for this product",
-  "topBenefits": ["Specific benefit 1","Specific benefit 2","Specific benefit 3"],
-  "painPoints": ["Problem this solves 1","Problem 2"],
-  "buyingTriggers": ["e.g. Gift idea","e.g. Upgrade from old product","e.g. Festival season"],
+  "buyerPersona": "One sentence describing the ideal buyer",
+  "topBenefits": ["Benefit 1","Benefit 2","Benefit 3"],
+  "painPoints": ["Problem 1","Problem 2"],
+  "buyingTriggers": ["Trigger 1","Trigger 2"],
   "pricePositioning": "budget or mid-range or premium",
-  "contentAngle": "The single best angle to market this product e.g. productivity upgrade, self-care essential, smart kitchen",
-  "uniqueHook": "One sentence that makes someone want to buy this right now",
+  "contentAngle": "single best marketing angle",
+  "uniqueHook": "One sentence that makes someone want to buy now",
   "hashtags": {
-    "pinterest": ["15 Pinterest hashtags without #, mix of broad and niche"],
+    "pinterest": ["15 Pinterest hashtags without #"],
     "instagram": ["20 Instagram hashtags without #"],
     "facebook": ["8 Facebook hashtags without #"],
     "threads": ["8 Threads hashtags without #"]
   },
-  "seoKeywords": ["10 long-tail search keywords for this product"],
-  "imageSceneIdea": "Brief description of the ideal lifestyle scene for this product photo"
+  "seoKeywords": ["10 long-tail search keywords"],
+  "imageSceneIdea": "Brief ideal lifestyle scene description"
 }`;
 
-  const r = await axios.post(
-    "https://api.groq.com/openai/v1/chat/completions",
-    {
-      model: "llama-3.3-70b-versatile",
-      max_tokens: 1200,
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" }
-    },
-    { headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, timeout: 30000 }
-  );
-  return JSON.parse(r.data.choices[0].message.content);
+  // Try Groq first
+  try {
+    return await callGroqWithRetry(prompt, 3);
+  } catch(groqErr) {
+    console.warn("Groq failed after retries:", groqErr.response?.status, groqErr.message, "— falling back to Gemini");
+
+    // Gemini fallback for analysis
+    const gemKey = process.env.GEMINI_API_KEY;
+    if (!gemKey) throw new Error("Both Groq (rate limited) and Gemini (no key) unavailable");
+
+    const r = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${gemKey}`,
+      {
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 1200, responseMimeType: "application/json" }
+      },
+      { headers: { "Content-Type": "application/json" }, timeout: 30000 }
+    );
+    return JSON.parse(r.data.candidates[0].content.parts[0].text);
+  }
 }
 
 // ─── Gemini — creative content (minimal tokens) ───────────────────────────────
