@@ -1,6 +1,7 @@
 {
-  "name": "amazon-to-pinterest",
-  "version": "2.0.0",
+  "name": "amazon-content-engine",
+  "version": "3.0.0",
+  "description": "Amazon to Multi-Platform Affiliate Content Engine",
   "main": "server.js",
   "scripts": { "start": "node server.js" },
   "dependencies": {
@@ -9,7 +10,6 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "express-session": "^1.18.0",
     "form-data": "^4.0.0"
   }
 }
