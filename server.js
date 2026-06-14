@@ -1,631 +1,553 @@
 require("dotenv").config();
-
 const express = require("express");
-const cors = require("cors");
-const axios = require("axios");
+const cors    = require("cors");
+const axios   = require("axios");
 const cheerio = require("cheerio");
-const path = require("path");
-const session = require("express-session");
-const fs = require("fs");
-const FormData = require("form-data");
+const path    = require("path");
+const fs      = require("fs");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-const QUEUE_FILE = "/tmp/affiliate_content_queue.json";
-const DEFAULT_PLATFORMS = {
-  pinterest: true,
-  facebook: true,
-  instagram: true,
-  threads: true,
-};
-
 app.use(cors());
-app.use(express.json({ limit: "25mb" }));
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || "affiliate-content-engine",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: false,
-      httpOnly: true,
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    },
-  })
-);
-app.use(express.static(__dirname));
+app.use(express.json({ limit: "20mb" }));
 
-function wantsPassword() {
-  return Boolean(process.env.APP_PASSWORD);
+const PORT         = process.env.PORT || 3000;
+const QUEUE_FILE   = "/tmp/ace_queue.json";
+const APP_PASSWORD = process.env.APP_PASSWORD;
+
+// ─── Queue persistence ────────────────────────────────────────────────────────
+let serverQueue = [];
+try {
+  if (fs.existsSync(QUEUE_FILE)) {
+    serverQueue = JSON.parse(fs.readFileSync(QUEUE_FILE, "utf8"));
+    console.log(`✅ Loaded ${serverQueue.length} queue items`);
+  }
+} catch(e) { serverQueue = []; }
+function saveQueue() {
+  try { fs.writeFileSync(QUEUE_FILE, JSON.stringify(serverQueue)); } catch(e) {}
 }
 
-function isAuthed(req) {
-  return !wantsPassword() || req.session?.authenticated;
-}
-
+// ─── Password middleware (optional — only active if APP_PASSWORD is set) ──────
 function requireAuth(req, res, next) {
-  if (isAuthed(req)) return next();
-  return res.status(401).json({ error: "Authentication required" });
+  if (!APP_PASSWORD) return next();
+  const open = ["/auth/login", "/auth/logout", "/login.html"];
+  if (open.some(p => req.path.startsWith(p))) return next();
+  if (req.session.authed) return next();
+  if (req.path.startsWith("/api/")) return res.status(401).json({ error: "Unauthorized" });
+  return res.sendFile(path.join(__dirname, "login.html"));
 }
-
+app.use(requireAuth);
+app.use(express.static(__dirname));
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "index.html")));
 
-app.get("/api/session", (req, res) => {
-  res.json({ passwordRequired: wantsPassword(), authenticated: isAuthed(req) });
+app.post("/auth/login", (req, res) => {
+  if (req.body.password === APP_PASSWORD) { req.session.authed = true; res.json({ ok: true }); }
+  else res.status(401).json({ error: "Wrong password" });
 });
+app.post("/auth/logout", (req, res) => { req.session.destroy(() => res.json({ ok: true })); });
 
-app.post("/api/login", (req, res) => {
-  if (!wantsPassword()) return res.json({ ok: true });
-  if (req.body?.password !== process.env.APP_PASSWORD) {
-    return res.status(401).json({ error: "Invalid password" });
-  }
-  req.session.authenticated = true;
-  res.json({ ok: true });
-});
-
-app.post("/api/logout", (req, res) => {
-  req.session.destroy(() => res.json({ ok: true }));
-});
-
-function readQueue() {
-  try {
-    if (fs.existsSync(QUEUE_FILE)) return JSON.parse(fs.readFileSync(QUEUE_FILE, "utf8"));
-  } catch (e) {
-    console.warn("Queue read failed:", e.message);
-  }
-  return [];
-}
-
-function writeQueue(queue) {
-  try {
-    fs.writeFileSync(QUEUE_FILE, JSON.stringify(queue, null, 2));
-  } catch (e) {
-    console.warn("Queue write failed:", e.message);
-  }
-}
-
-let contentQueue = readQueue();
-
-function normalizePlatforms(platforms = {}) {
-  if (Array.isArray(platforms)) {
-    return {
-      pinterest: platforms.includes("pinterest"),
-      facebook: platforms.includes("facebook"),
-      instagram: platforms.includes("instagram"),
-      threads: platforms.includes("threads"),
-    };
-  }
-  return {
-    pinterest: platforms.pinterest !== false,
-    facebook: platforms.facebook !== false,
-    instagram: platforms.instagram !== false,
-    threads: platforms.threads !== false,
-  };
-}
-
-function enabledPlatformNames(platforms) {
-  return Object.entries(normalizePlatforms(platforms))
-    .filter(([, enabled]) => enabled)
-    .map(([name]) => name);
-}
-
-const UA_LIST = [
+// ─── Utility: random User-Agent ───────────────────────────────────────────────
+const UAS = [
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
 ];
+const rUA = () => UAS[Math.floor(Math.random() * UAS.length)];
 
-function randomUA() {
-  return UA_LIST[Math.floor(Math.random() * UA_LIST.length)];
-}
-
-function extractHintFromUrl(url) {
-  try {
-    const u = new URL(url);
-    const parts = u.pathname.split("/").filter(Boolean);
-    const dpIdx = parts.indexOf("dp");
-    if (dpIdx > 0) return parts[dpIdx - 1].replace(/-/g, " ");
-    return parts.slice(0, 2).join(" ").replace(/-/g, " ");
-  } catch {
-    return "";
-  }
-}
-
-function getBestImageUrl($) {
-  const dynamicRaw =
-    $("#landingImage").attr("data-a-dynamic-image") ||
-    $(".a-dynamic-image").first().attr("data-a-dynamic-image");
-  if (dynamicRaw) {
+// ─── Amazon scraping ──────────────────────────────────────────────────────────
+function getBestImage($) {
+  const dyn = $("#landingImage").attr("data-a-dynamic-image") || $(".a-dynamic-image").first().attr("data-a-dynamic-image");
+  if (dyn) {
     try {
-      const imgs = JSON.parse(dynamicRaw);
-      const sorted = Object.entries(imgs).sort((a, b) => b[1][0] * b[1][1] - a[1][0] * a[1][1]);
-      if (sorted.length) return sorted[0][0];
+      const imgs = JSON.parse(dyn);
+      return Object.entries(imgs).sort((a,b) => (b[1][0]*b[1][1]) - (a[1][0]*a[1][1]))[0][0];
     } catch {}
   }
+  const og = $("meta[property='og:image']").attr("content");
+  if (og) return og;
+  const old = $("#landingImage").attr("data-old-hires");
+  if (old) return old;
+  const src = $("#landingImage").attr("src") || "";
+  return src.replace(/_SX[0-9]+_/,"_SX679_").replace(/_SL[0-9]+_/,"_SL679_");
+}
 
-  const ogImage =
-    $("meta[property='og:image']").attr("content") ||
-    $("meta[name='twitter:image']").attr("content");
-  if (ogImage?.startsWith("http")) return ogImage;
-
-  const oldHires = $("#landingImage").attr("data-old-hires");
-  if (oldHires?.startsWith("http")) return oldHires;
-
-  const src = $("#landingImage").attr("src") || $(".a-dynamic-image").first().attr("src") || "";
-  if (src.startsWith("http")) {
-    return src
-      .replace(/_SX[0-9]+_/, "_SX679_")
-      .replace(/_SY[0-9]+_/, "_SY679_")
-      .replace(/_AC_US[0-9]+_/, "_AC_SX679_")
-      .replace(/_SL[0-9]+_/, "_SL679_");
-  }
-
-  let galleryUrl = "";
-  $("img[data-old-hires]").each((_, el) => {
-    const u = $(el).attr("data-old-hires");
-    if (u?.startsWith("http") && !galleryUrl) galleryUrl = u;
+function parseHtml(html) {
+  const $ = cheerio.load(html);
+  const title = ($("#productTitle").text() || $("h1.a-size-large").text()).trim();
+  if (!title) throw new Error("Title not found — Amazon may have blocked this request");
+  const price = $(".a-price .a-offscreen").first().text().trim()
+    || $("#priceblock_ourprice").text().trim()
+    || $(".apexPriceToPay .a-offscreen").first().text().trim()
+    || $(".a-price-whole").first().text().trim();
+  const brand = ($("#bylineInfo").text().replace(/Brand:|Visit the|Store|by /gi,"") || "").trim().substring(0,40);
+  const imageUrl = getBestImage($);
+  const bullets = [];
+  $("#feature-bullets li span:not(.a-list-item), #feature-bullets li").each((_,el) => {
+    const t = $(el).text().trim();
+    if (t.length > 15 && t.length < 250) bullets.push(t);
   });
-  return galleryUrl;
+  return { title, price, brand, imageUrl, description: bullets.slice(0,4).join(". ") };
 }
 
 async function scrapeAmazon(url) {
-  let finalUrl = url;
+  // Resolve short URLs
   if (url.includes("amzn.to") || url.includes("amzn.eu")) {
-    try {
-      const redirected = await axios.get(url, {
-        maxRedirects: 5,
-        timeout: 8000,
-        headers: { "User-Agent": randomUA() },
-      });
-      finalUrl = redirected.request?.res?.responseUrl || redirected.config?.url || url;
-    } catch {}
+    try { url = (await axios.get(url,{maxRedirects:5,timeout:8000,headers:{"User-Agent":rUA()}})).request?.res?.responseUrl || url; } catch {}
   }
-
-  const { data: html } = await axios.get(finalUrl, {
-    timeout: 12000,
-    headers: {
-      "User-Agent": randomUA(),
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "Accept-Language": "en-IN,en;q=0.9",
-      "Accept-Encoding": "gzip, deflate, br",
-      "Cache-Control": "no-cache",
-    },
-  });
-
-  const $ = cheerio.load(html);
-  const title =
-    $("#productTitle").text().trim() ||
-    $("h1.a-size-large").text().trim() ||
-    $("h1[data-feature-name='title']").text().trim() ||
-    $(".product-title-word-break").text().trim();
-
-  if (!title) throw new Error("Amazon blocked extraction or the URL is not a product page");
-
-  const price =
-    $(".a-price .a-offscreen").first().text().trim() ||
-    $("#priceblock_ourprice").text().trim() ||
-    $("#priceblock_dealprice").text().trim() ||
-    $(".apexPriceToPay .a-offscreen").first().text().trim() ||
-    $("[data-asin-price]").first().attr("data-asin-price") ||
-    $(".a-price-whole").first().text().trim();
-
-  const brand =
-    $("#bylineInfo").text().replace(/Brand:|Visit the|Store|by\s+/gi, "").trim() ||
-    $(".po-brand .a-span9 span").text().trim() ||
-    $("a#bylineInfo").text().replace(/Visit the|Store/gi, "").trim();
-
-  const bullets = [];
-  $("#feature-bullets li span:not(.a-list-item)").each((_, el) => {
-    const text = $(el).text().trim();
-    if (text.length > 15 && text.length < 260) bullets.push(text);
-  });
-  if (!bullets.length) {
-    $("#feature-bullets li").each((_, el) => {
-      const text = $(el).text().trim();
-      if (text.length > 15 && text.length < 260) bullets.push(text);
-    });
-  }
-
-  return {
-    title,
-    price,
-    brand,
-    imageUrl: getBestImageUrl($),
-    description: bullets.slice(0, 4).join(". "),
-    sourceUrl: finalUrl,
-    urlHint: extractHintFromUrl(finalUrl),
+  const HDRS = {
+    "User-Agent": rUA(),
+    "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-IN,en-GB;q=0.9,en;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Upgrade-Insecure-Requests": "1",
   };
+  // Try direct
+  try {
+    const { data } = await axios.get(url, { timeout: 12000, headers: HDRS, maxRedirects: 5 });
+    return parseHtml(data);
+  } catch {}
+  // Try allorigins proxy
+  try {
+    const r = await axios.get(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, { timeout: 15000 });
+    if (r.data?.contents?.length > 5000) return parseHtml(r.data.contents);
+  } catch {}
+  // Try codetabs proxy
+  try {
+    const r = await axios.get(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`, { timeout: 15000 });
+    if (typeof r.data === "string" && r.data.length > 5000) return parseHtml(r.data);
+  } catch {}
+  throw new Error("Could not scrape Amazon — try a direct amazon.in/amazon.com link");
 }
 
-async function groqJSON(messages, maxTokens = 1100) {
+// ─── Re-host image on ImgBB (permanent) ──────────────────────────────────────
+async function reHostImage(imageUrl) {
+  if (!imageUrl || !process.env.IMGBB_API_KEY) return imageUrl;
+  try {
+    const r = await axios.get(imageUrl, {
+      responseType: "arraybuffer", timeout: 10000,
+      headers: { "User-Agent": rUA(), "Referer": "https://www.amazon.in/" }
+    });
+    const base64 = Buffer.from(r.data).toString("base64");
+    const FormData = require("form-data");
+    const fd = new FormData();
+    fd.append("key", process.env.IMGBB_API_KEY);
+    fd.append("image", base64);
+    // NO expiration — permanent hosting
+    const up = await axios.post("https://api.imgbb.com/1/upload", fd, { headers: fd.getHeaders(), timeout: 15000 });
+    return up.data.data.url;
+  } catch(e) {
+    console.warn("ImgBB re-host failed:", e.message);
+    return imageUrl;
+  }
+}
+
+// ─── Extract endpoint ─────────────────────────────────────────────────────────
+app.post("/api/extract", async (req, res) => {
+  const { amazonUrl } = req.body;
+  if (!amazonUrl) return res.status(400).json({ error: "Missing amazonUrl" });
+  try {
+    const product = await scrapeAmazon(amazonUrl);
+    product.affiliateUrl = injectTag(amazonUrl);
+    if (product.imageUrl) product.hostedImageUrl = await reHostImage(product.imageUrl);
+    res.json({ product });
+  } catch(e) {
+    console.error("Extract:", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── Affiliate tag injection ──────────────────────────────────────────────────
+function injectTag(url, tag) {
+  const t = tag || process.env.AFFILIATE_TAG || "";
+  if (!t) return url;
+  try { const u = new URL(url); u.searchParams.set("tag", t); return u.toString(); }
+  catch { return url + (url.includes("?") ? "&" : "?") + "tag=" + t; }
+}
+
+// ─── Groq — product intelligence (cheap, fast) ───────────────────────────────
+async function analyzeWithGroq(product) {
   const key = process.env.GROQ_API_KEY;
   if (!key) throw new Error("GROQ_API_KEY not set");
-  const response = await axios.post(
+
+  const isIndia = (product.affiliateUrl || "").includes("amazon.in");
+
+  const prompt = `You are an expert affiliate marketer specializing in ${isIndia ? "Indian" : "global"} e-commerce content.
+
+Analyze this product and return a complete content marketing brief:
+Product: ${product.title}
+Brand: ${product.brand || "Unknown"}
+Price: ${product.price || "Check Amazon"}
+Description: ${product.description || "Premium quality product"}
+
+Return ONLY valid JSON, no markdown:
+{
+  "category": "one of: Tech, Kitchen, Beauty, Fashion, Home, Fitness, Baby, Food, Organic, Lifestyle",
+  "subCategory": "specific subcategory",
+  "targetAudience": {
+    "primary": "2-3 word buyer description e.g. Work From Home Professionals",
+    "ageRange": "e.g. 25-40",
+    "interests": ["interest1","interest2","interest3"]
+  },
+  "buyerPersona": "One sentence describing the ideal buyer for this product",
+  "topBenefits": ["Specific benefit 1","Specific benefit 2","Specific benefit 3"],
+  "painPoints": ["Problem this solves 1","Problem 2"],
+  "buyingTriggers": ["e.g. Gift idea","e.g. Upgrade from old product","e.g. Festival season"],
+  "pricePositioning": "budget or mid-range or premium",
+  "contentAngle": "The single best angle to market this product e.g. productivity upgrade, self-care essential, smart kitchen",
+  "uniqueHook": "One sentence that makes someone want to buy this right now",
+  "hashtags": {
+    "pinterest": ["15 Pinterest hashtags without #, mix of broad and niche"],
+    "instagram": ["20 Instagram hashtags without #"],
+    "facebook": ["8 Facebook hashtags without #"],
+    "threads": ["8 Threads hashtags without #"]
+  },
+  "seoKeywords": ["10 long-tail search keywords for this product"],
+  "imageSceneIdea": "Brief description of the ideal lifestyle scene for this product photo"
+}`;
+
+  const r = await axios.post(
     "https://api.groq.com/openai/v1/chat/completions",
     {
       model: "llama-3.3-70b-versatile",
-      temperature: 0.35,
-      max_tokens: maxTokens,
-      response_format: { type: "json_object" },
-      messages,
+      max_tokens: 1200,
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" }
     },
-    {
-      timeout: 30000,
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-    }
+    { headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, timeout: 30000 }
   );
-  return JSON.parse(response.data.choices[0].message.content);
+  return JSON.parse(r.data.choices[0].message.content);
 }
 
-async function geminiJSON(prompt, maxTokens = 1400) {
+// ─── Gemini — creative content (minimal tokens) ───────────────────────────────
+async function generateCreativeWithGemini(product, analysis) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY not set");
-  const response = await axios.post(
+
+  const prompt = `You are an elite social media content creator for affiliate marketing.
+
+Product: ${product.title}
+Price: ${product.price || "N/A"}
+Brand: ${product.brand || "N/A"}
+Content Angle: ${analysis.contentAngle}
+Target Buyer: ${analysis.buyerPersona}
+Top Benefits: ${analysis.topBenefits?.join(", ")}
+Unique Hook: ${analysis.uniqueHook}
+Image Scene: ${analysis.imageSceneIdea}
+
+Create platform-optimized content. Return ONLY valid JSON:
+{
+  "headline": "2-5 word ALL CAPS Pinterest headline communicating main benefit",
+  "subHeadline": "Supporting line max 8 words",
+  "pinterest": {
+    "title": "SEO Pinterest title 60-100 chars with main keyword",
+    "description": "Pinterest description 150-200 chars, benefit-focused, includes price, ends with soft CTA"
+  },
+  "facebook": {
+    "caption": "Facebook post 80-120 words. Open with hook. 2-3 paragraphs. Conversational. Uses emoji. Includes price. Ends with question or CTA. Affiliate disclosure: #ad"
+  },
+  "instagram": {
+    "caption": "Instagram caption 60-90 words. Aesthetic and aspirational. Line breaks for readability. 3-5 relevant emoji. Lifestyle-focused. Ends with CTA."
+  },
+  "threads": {
+    "post": "Threads post max 400 chars. Opinion or discovery style. Casual and authentic. e.g. 'Found this and had to share...' or 'This changed my routine...'"
+  },
+  "imagePrompt": "Detailed image generation prompt: Pinterest ad style, 1080x1920 vertical, ${product.title} as hero product, ${analysis.imageSceneIdea}, premium commercial photography, dramatic cinematic lighting, lifestyle environment, ultra realistic 8K, no text overlay, viral Pinterest aesthetic, professional advertising quality"
+}`;
+
+  const r = await axios.post(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
     {
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.75,
-        maxOutputTokens: maxTokens,
-        responseMimeType: "application/json",
-      },
+      generationConfig: { temperature: 0.9, maxOutputTokens: 1500, responseMimeType: "application/json" }
     },
-    { timeout: 30000, headers: { "Content-Type": "application/json" } }
+    { headers: { "Content-Type": "application/json" }, timeout: 30000 }
   );
-  const text = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("Empty Gemini text response");
-  return JSON.parse(text.replace(/```json|```/g, "").trim());
+
+  const text = r.data.candidates[0].content.parts[0].text;
+  return JSON.parse(text.replace(/```json|```/g,"").trim());
 }
 
-async function geminiGenerateImage(prompt, productImageUrl) {
+// ─── Gemini image generation ──────────────────────────────────────────────────
+async function generateSceneImage(imagePrompt, productImageUrl) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY not set");
 
-  const parts = [{ text: prompt }];
+  const parts = [{ text: imagePrompt }];
+
+  // Optionally include product image for Gemini to reference
   if (productImageUrl) {
     try {
-      const imgRes = await axios.get(productImageUrl, {
-        responseType: "arraybuffer",
-        timeout: 12000,
-        headers: { "User-Agent": randomUA(), Referer: "https://www.amazon.in/" },
+      const imgR = await axios.get(productImageUrl, {
+        responseType: "arraybuffer", timeout: 10000,
+        headers: { "User-Agent": rUA(), "Referer": "https://www.amazon.in/" }
       });
-      parts.push({
-        inlineData: {
-          mimeType: imgRes.headers["content-type"]?.split(";")[0] || "image/jpeg",
-          data: Buffer.from(imgRes.data).toString("base64"),
-        },
-      });
-    } catch (e) {
-      console.warn("Product image fetch for Gemini failed:", e.message);
-    }
+      const b64 = Buffer.from(imgR.data).toString("base64");
+      const mime = imgR.headers["content-type"]?.split(";")[0] || "image/jpeg";
+      parts.push({ inlineData: { mimeType: mime, data: b64 } });
+    } catch {}
   }
 
-  const response = await axios.post(
+  const r = await axios.post(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${key}`,
     {
       contents: [{ role: "user", parts }],
-      generationConfig: { responseModalities: ["IMAGE", "TEXT"], temperature: 0.9 },
+      generationConfig: { responseModalities: ["IMAGE","TEXT"], temperature: 1.0 }
     },
-    { timeout: 70000, headers: { "Content-Type": "application/json" } }
+    { headers: { "Content-Type": "application/json" }, timeout: 60000 }
   );
 
-  const imagePart = response.data.candidates?.[0]?.content?.parts?.find((part) => part.inlineData);
-  if (!imagePart) throw new Error("Gemini did not return an image");
-  return imagePart.inlineData.data;
+  const imgPart = r.data.candidates[0].content.parts.find(p => p.inlineData);
+  if (!imgPart) throw new Error("Gemini returned no image");
+  return imgPart.inlineData.data; // base64
 }
 
-async function uploadToImgBB(base64) {
-  if (!process.env.IMGBB_API_KEY) throw new Error("IMGBB_API_KEY not set");
-  const form = new FormData();
-  form.append("key", process.env.IMGBB_API_KEY);
-  form.append("image", base64.replace(/^data:image\/\w+;base64,/, ""));
-  const response = await axios.post("https://api.imgbb.com/1/upload", form, {
-    timeout: 30000,
-    headers: form.getHeaders(),
+// ─── Upload base64 to ImgBB (permanent) ──────────────────────────────────────
+async function uploadToImgBB(base64, mimeType) {
+  const key = process.env.IMGBB_API_KEY;
+  if (!key) throw new Error("IMGBB_API_KEY not set");
+  const FormData = require("form-data");
+  const fd = new FormData();
+  fd.append("key", key);
+  fd.append("image", base64.replace(/^data:image\/\w+;base64,/, ""));
+  // No expiration = permanent
+  const r = await axios.post("https://api.imgbb.com/1/upload", fd, {
+    headers: fd.getHeaders(), timeout: 20000
   });
-  return response.data.data.url;
+  return { url: r.data.data.url, deleteUrl: r.data.data.delete_url };
 }
 
-function stripHash(tag) {
-  return String(tag || "").replace(/^#+/, "").trim();
-}
+// ─── MAIN: Analyze product ────────────────────────────────────────────────────
+app.post("/api/analyze-product", async (req, res) => {
+  const { title, price, brand, description, affiliateUrl } = req.body;
+  if (!title) return res.status(400).json({ error: "Missing product title" });
+  try {
+    const analysis = await analyzeWithGroq({ title, price, brand, description, affiliateUrl });
+    res.json({ analysis });
+  } catch(e) {
+    console.error("Analyze:", e.response?.data || e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
 
-function toClientPackage(pkg) {
-  return {
-    ...pkg,
-    imageUrl: pkg.image?.url || "",
-    imagePrompt: pkg.image?.prompt || "",
-    analysis: pkg.intelligence,
-    pinterest: pkg.content?.pinterest
-      ? { ...pkg.content.pinterest, hashtags: (pkg.content.pinterest.hashtags || []).map(stripHash) }
-      : null,
-    facebook: pkg.content?.facebook
-      ? { ...pkg.content.facebook, hashtags: (pkg.content.facebook.hashtags || []).map(stripHash) }
-      : null,
-    instagram: pkg.content?.instagram
-      ? { ...pkg.content.instagram, hashtags: (pkg.content.instagram.hashtags || []).map(stripHash) }
-      : null,
-    threads: pkg.content?.threads
-      ? { ...pkg.content.threads, hashtags: (pkg.content.threads.hashtags || []).map(stripHash) }
-      : null,
-  };
-}
+// ─── MAIN: Generate all content ───────────────────────────────────────────────
+app.post("/api/generate-content", async (req, res) => {
+  const { amazonUrl, product: existingProduct, analysis: existingAnalysis } = req.body;
 
-async function analyzeProductFromData(product) {
-  return groqJSON(
-    [
-      {
-        role: "system",
-        content:
-          "You are a senior affiliate marketing strategist. Return compact JSON only. Use Groq for intelligence, not creative long copy.",
+  try {
+    // Step 1: Extract if no product provided
+    let product = existingProduct;
+    if (!product && amazonUrl) {
+      product = await scrapeAmazon(amazonUrl);
+      product.affiliateUrl = injectTag(amazonUrl);
+      if (product.imageUrl) product.hostedImageUrl = await reHostImage(product.imageUrl);
+    }
+    if (!product) return res.status(400).json({ error: "No product data" });
+
+    // Step 2: Groq analysis (cheap)
+    const analysis = existingAnalysis || await analyzeWithGroq(product);
+
+    // Step 3: Gemini creative (minimal tokens)
+    const creative = await generateCreativeWithGemini(product, analysis);
+
+    // Step 4: Gemini image generation
+    let generatedImageUrl = null;
+    try {
+      const b64 = await generateSceneImage(creative.imagePrompt, product.hostedImageUrl || product.imageUrl);
+      const uploaded = await uploadToImgBB(b64, "image/png");
+      generatedImageUrl = uploaded.url;
+    } catch(e) {
+      console.warn("Image gen failed:", e.message);
+      generatedImageUrl = product.hostedImageUrl || product.imageUrl || null;
+    }
+
+    // Step 5: Build content package
+    const pkg = {
+      product,
+      analysis,
+      imageUrl: generatedImageUrl,
+      pinterest: {
+        title: creative.pinterest?.title || creative.headline,
+        description: creative.pinterest?.description || "",
+        hashtags: analysis.hashtags?.pinterest || [],
+        headline: creative.headline,
+        subHeadline: creative.subHeadline,
+        imageUrl: generatedImageUrl,
       },
-      {
-        role: "user",
-        content: JSON.stringify({
-          task: "Analyze this Amazon product for multi-platform affiliate marketing.",
-          product,
-          requiredSchema: {
-            category: "specific product category",
-            subcategory: "specific niche",
-            audience: ["3 target buyer segments"],
-            buyingTriggers: ["5 purchase triggers"],
-            benefits: ["5 concise benefit bullets"],
-            objections: ["3 buyer objections"],
-            keywords: ["12 SEO keywords"],
-            hashtags: ["12 hashtags with #"],
-            seoTitle: "search optimized title under 70 chars",
-            seoDescription: "search optimized meta description under 160 chars",
-            angle: "core marketing angle",
-          },
-        }),
+      facebook: {
+        caption: creative.facebook?.caption || "",
+        hashtags: analysis.hashtags?.facebook || [],
+        imageUrl: generatedImageUrl,
       },
-    ],
-    1000
-  );
-}
+      instagram: {
+        caption: creative.instagram?.caption || "",
+        hashtags: analysis.hashtags?.instagram || [],
+        imageUrl: generatedImageUrl,
+      },
+      threads: {
+        post: creative.threads?.post || "",
+        hashtags: analysis.hashtags?.threads || [],
+      },
+      affiliateUrl: product.affiliateUrl,
+      generatedAt: new Date().toISOString(),
+    };
 
-async function generateCreativePackage(product, intelligence, platforms) {
-  const activePlatforms = enabledPlatformNames(platforms);
-  const prompt = `Return only JSON for a multi-platform affiliate content package.
-Use this product and intelligence. Keep output concise but ready to publish.
-Gemini is used only for creative copy and image prompt generation.
-
-Product: ${JSON.stringify(product)}
-Intelligence: ${JSON.stringify(intelligence)}
-Platforms: ${activePlatforms.join(", ")}
-
-Required JSON schema:
-{
-  "imagePrompt": "vertical 1080x1920 lifestyle marketing image prompt, no text in image, product dominant, realistic commercial photo style",
-  "hooks": ["5 short hooks"],
-  "ctas": ["5 short CTAs"],
-  "pinterest": {"title":"max 100 chars","description":"SEO rich description under 450 chars","hashtags":["#tag"]},
-  "facebook": {"caption":"conversion-focused caption with benefit bullets","hashtags":["#tag"]},
-  "instagram": {"caption":"engaging caption with line breaks","hashtags":["#tag"]},
-  "threads": {"post":"short conversational post under 500 chars","hashtags":["#tag"]}
-}`;
-
-  const creative = await geminiJSON(prompt, 1500);
-  for (const platform of Object.keys(DEFAULT_PLATFORMS)) {
-    if (!activePlatforms.includes(platform)) creative[platform] = null;
-  }
-  return creative;
-}
-
-async function buildContentPackage({ amazonUrl, product, intelligence, platforms = DEFAULT_PLATFORMS }) {
-  const extractedProduct = product || (await scrapeAmazon(amazonUrl));
-  const productIntelligence = intelligence || (await analyzeProductFromData(extractedProduct));
-  const creative = await generateCreativePackage(extractedProduct, productIntelligence, platforms);
-  const generatedImageBase64 = await geminiGenerateImage(creative.imagePrompt, extractedProduct.imageUrl);
-  const imageUrl = await uploadToImgBB(generatedImageBase64);
-
-  return {
-    id: Date.now(),
-    createdAt: new Date().toISOString(),
-    product: extractedProduct,
-    intelligence: productIntelligence,
-    image: {
-      url: imageUrl,
-      sourceProductImageUrl: extractedProduct.imageUrl || "",
-      prompt: creative.imagePrompt,
-    },
-    content: {
-      hooks: creative.hooks || [],
-      ctas: creative.ctas || [],
-      pinterest: creative.pinterest,
-      facebook: creative.facebook,
-      instagram: creative.instagram,
-      threads: creative.threads,
-    },
-    platforms: normalizePlatforms(platforms),
-  };
-}
-
-app.post("/api/analyze-product", requireAuth, async (req, res) => {
-  try {
-    const { amazonUrl } = req.body;
-    if (!amazonUrl) return res.status(400).json({ error: "Missing amazonUrl" });
-    const product = await scrapeAmazon(amazonUrl);
-    const intelligence = await analyzeProductFromData(product);
-    res.json({ product, intelligence });
-  } catch (e) {
-    console.error("analyze-product:", e.response?.data || e.message);
-    res.status(500).json({ error: e.message || "Product analysis failed" });
+    res.json(pkg);
+  } catch(e) {
+    console.error("Generate content:", e.response?.data || e.message);
+    res.status(500).json({ error: e.message });
   }
 });
 
-app.post("/api/generate-content", requireAuth, async (req, res) => {
+// ─── Generate scene image only ────────────────────────────────────────────────
+app.post("/api/generate-image", async (req, res) => {
+  const { imagePrompt, productImageUrl } = req.body;
+  if (!imagePrompt) return res.status(400).json({ error: "Missing imagePrompt" });
   try {
-    const { amazonUrl, product, intelligence, platforms } = req.body;
-    if (!amazonUrl && !product) return res.status(400).json({ error: "Missing amazonUrl or product" });
-    const result = await buildContentPackage({ amazonUrl, product, intelligence, platforms });
-    res.json(toClientPackage(result));
-  } catch (e) {
-    console.error("generate-content:", e.response?.data || e.message);
-    res.status(500).json({ error: e.message || "Content generation failed" });
+    const b64 = await generateSceneImage(imagePrompt, productImageUrl);
+    const uploaded = await uploadToImgBB(b64, "image/png");
+    res.json({ imageUrl: uploaded.url, deleteUrl: uploaded.deleteUrl });
+  } catch(e) {
+    console.error("Generate image:", e.response?.data || e.message);
+    res.status(500).json({ error: e.message });
   }
 });
 
-app.post("/api/generate-image", requireAuth, async (req, res) => {
+// ─── Upload image ─────────────────────────────────────────────────────────────
+app.post("/api/upload-image", async (req, res) => {
+  const { base64 } = req.body;
+  if (!base64) return res.status(400).json({ error: "Missing base64" });
   try {
-    const { imagePrompt, productImageUrl } = req.body;
-    if (!imagePrompt) return res.status(400).json({ error: "Missing imagePrompt" });
-    const generatedImageBase64 = await geminiGenerateImage(imagePrompt, productImageUrl);
-    const imageUrl = await uploadToImgBB(generatedImageBase64);
-    res.json({ imageUrl });
-  } catch (e) {
-    console.error("generate-image:", e.response?.data || e.message);
-    res.status(500).json({ error: e.message || "Image generation failed" });
+    const result = await uploadToImgBB(base64);
+    res.json({ url: result.url });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
   }
 });
 
-app.post("/api/bulk-import", requireAuth, (req, res) => {
-  const urls = Array.isArray(req.body.urls)
-    ? req.body.urls
-    : String(req.body.urls || "")
-        .split(/\r?\n/)
-        .map((url) => url.trim())
-        .filter(Boolean);
+// ─── Image proxy ──────────────────────────────────────────────────────────────
+app.get("/api/proxy-image", async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).send("Missing url");
+  try {
+    const r = await axios.get(url, {
+      responseType: "arraybuffer", timeout: 10000,
+      headers: { "User-Agent": rUA(), "Referer": "https://www.amazon.in/", "Accept": "image/*" }
+    });
+    res.set("Content-Type", r.headers["content-type"] || "image/jpeg");
+    res.set("Cache-Control", "public, max-age=86400");
+    res.set("Access-Control-Allow-Origin", "*");
+    res.send(r.data);
+  } catch { res.status(404).send("Not found"); }
+});
 
-  if (!urls.length) return res.status(400).json({ error: "No URLs provided" });
+// ─── Bulk import ──────────────────────────────────────────────────────────────
+app.post("/api/bulk-import", async (req, res) => {
+  const { urls, platforms = ["pinterest","facebook","instagram","threads"], scheduleHours = 4 } = req.body;
+  if (!Array.isArray(urls) || !urls.length) return res.status(400).json({ error: "No URLs provided" });
 
-  const platforms = normalizePlatforms(req.body.platforms);
-  const scheduleHours = Number(req.body.scheduleHours || 4);
-  const now = Date.now();
-  const items = urls.slice(0, 100).map((amazonUrl, index) => ({
-    id: now + index,
-    amazonUrl,
+  const items = urls.slice(0, 50).map((url, i) => ({
+    id: Date.now() + i,
+    amazonUrl: url.trim(),
     platforms,
-    status: "queued",
+    status: "pending",
+    scheduledAt: Date.now() + (i * scheduleHours * 60 * 60 * 1000 / urls.length), // spread over interval
+    content: null,
     createdAt: new Date().toISOString(),
-    scheduledFor: new Date(now + index * scheduleHours * 60 * 60 * 1000).toISOString(),
-    scheduledAt: now + index * scheduleHours * 60 * 60 * 1000,
-    attempts: 0,
-    result: null,
-    error: null,
-    publishing: Object.fromEntries(enabledPlatformNames(platforms).map((name) => [name, "ready_for_manual_or_browser_posting"])),
   }));
 
-  contentQueue.push(...items);
-  writeQueue(contentQueue);
-  res.json({ ok: true, imported: items.length, added: items.length, queue: contentQueue, count: contentQueue.length });
+  serverQueue.push(...items);
+  saveQueue();
+  res.json({ added: items.length, queueSize: serverQueue.length });
 });
 
-app.get("/api/queue", requireAuth, (req, res) => {
-  res.json({ queue: contentQueue, count: contentQueue.length });
+// ─── Queue CRUD ───────────────────────────────────────────────────────────────
+app.get("/api/queue", (req, res) => res.json({ queue: serverQueue, count: serverQueue.length }));
+
+app.post("/api/queue", (req, res) => {
+  const item = req.body;
+  if (!item?.id) return res.status(400).json({ error: "Missing id" });
+  const idx = serverQueue.findIndex(q => q.id === item.id);
+  if (idx >= 0) serverQueue[idx] = { ...serverQueue[idx], ...item };
+  else serverQueue.push(item);
+  saveQueue();
+  res.json({ ok: true });
 });
 
-app.post("/api/queue", requireAuth, (req, res) => {
-  const item = req.body || {};
-  if (!item.amazonUrl) return res.status(400).json({ error: "Missing amazonUrl" });
-  const queuedItem = {
-    id: item.id || Date.now(),
-    amazonUrl: item.amazonUrl,
-    platforms: normalizePlatforms(item.platforms),
-    status: item.status === "pending" ? "queued" : item.status || "queued",
-    createdAt: item.createdAt || new Date().toISOString(),
-    scheduledFor: item.scheduledFor || (item.scheduledAt ? new Date(item.scheduledAt).toISOString() : new Date().toISOString()),
-    scheduledAt: item.scheduledAt || Date.now(),
-    attempts: 0,
-    result: item.content || null,
-    error: null,
-  };
-  contentQueue.push(queuedItem);
-  writeQueue(contentQueue);
-  res.json({ ok: true, item: queuedItem, queue: contentQueue, count: contentQueue.length });
+app.put("/api/queue/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const idx = serverQueue.findIndex(q => q.id === id);
+  if (idx < 0) return res.status(404).json({ error: "Not found" });
+  serverQueue[idx] = { ...serverQueue[idx], ...req.body };
+  saveQueue();
+  res.json({ ok: true, item: serverQueue[idx] });
 });
 
-app.post("/api/queue/add", requireAuth, (req, res) => {
-  const { amazonUrl, platforms, scheduledFor } = req.body;
-  if (!amazonUrl) return res.status(400).json({ error: "Missing amazonUrl" });
-  const item = {
-    id: Date.now(),
-    amazonUrl,
-    platforms: normalizePlatforms(platforms),
-    status: "queued",
-    createdAt: new Date().toISOString(),
-    scheduledFor: scheduledFor || new Date().toISOString(),
-    scheduledAt: scheduledFor ? Date.parse(scheduledFor) : Date.now(),
-    attempts: 0,
-    result: null,
-    error: null,
-  };
-  contentQueue.push(item);
-  writeQueue(contentQueue);
-  res.json({ ok: true, item, queue: contentQueue });
+app.delete("/api/queue/:id", (req, res) => {
+  serverQueue = serverQueue.filter(q => q.id !== Number(req.params.id));
+  saveQueue();
+  res.json({ ok: true });
 });
 
-app.delete("/api/queue", requireAuth, (req, res) => {
-  contentQueue = [];
-  writeQueue(contentQueue);
-  res.json({ ok: true, queue: contentQueue, count: 0 });
+app.delete("/api/queue", (req, res) => {
+  serverQueue = [];
+  saveQueue();
+  res.json({ ok: true });
 });
 
-app.post("/api/queue/:id/run", requireAuth, async (req, res) => {
-  const item = contentQueue.find((entry) => String(entry.id) === String(req.params.id));
-  if (!item) return res.status(404).json({ error: "Queue item not found" });
-  try {
-    await processQueueItem(item);
-    res.json({ ok: true, item });
-  } catch (e) {
-    res.status(500).json({ error: e.message || "Queue item failed", item });
-  }
-});
+// ─── Queue processor (every 4 hours) ─────────────────────────────────────────
+let isProcessing = false;
 
-app.delete("/api/queue/:id", requireAuth, (req, res) => {
-  contentQueue = contentQueue.filter((entry) => String(entry.id) !== String(req.params.id));
-  writeQueue(contentQueue);
-  res.json({ ok: true, queue: contentQueue });
-});
-
-async function processQueueItem(item) {
-  item.status = "processing";
-  item.startedAt = new Date().toISOString();
-  item.attempts = (item.attempts || 0) + 1;
-  item.error = null;
-  writeQueue(contentQueue);
-
-  try {
-    item.result = await buildContentPackage({
-      amazonUrl: item.amazonUrl,
-      platforms: item.platforms || DEFAULT_PLATFORMS,
-    });
-    item.status = "complete";
-    item.completedAt = new Date().toISOString();
-    item.publishing = Object.fromEntries(
-      enabledPlatformNames(item.platforms).map((name) => [name, "ready_for_manual_or_browser_posting"])
-    );
-  } catch (e) {
-    item.status = "failed";
-    item.error = e.message || "Unknown error";
-    item.failedAt = new Date().toISOString();
-    throw e;
-  } finally {
-    writeQueue(contentQueue);
-  }
-}
-
-async function processDueQueue() {
+async function processQueue() {
+  if (isProcessing) return;
   const now = Date.now();
-  const due = contentQueue
-    .filter((item) => item.status === "queued" && Date.parse(item.scheduledFor || item.createdAt) <= now)
-    .slice(0, 1);
+  const due = serverQueue.filter(q => q.status === "pending" && q.scheduledAt <= now);
+  if (!due.length) return;
+
+  console.log(`⏰ Processing ${due.length} queue items`);
+  isProcessing = true;
 
   for (const item of due) {
     try {
-      await processQueueItem(item);
-    } catch (e) {
-      console.error("Scheduled queue item failed:", item.id, e.message);
+      const idx = serverQueue.findIndex(q => q.id === item.id);
+      if (idx < 0) continue;
+      serverQueue[idx].status = "processing";
+      saveQueue();
+
+      const pkg = await (async () => {
+        const product = await scrapeAmazon(item.amazonUrl);
+        product.affiliateUrl = injectTag(item.amazonUrl);
+        if (product.imageUrl) product.hostedImageUrl = await reHostImage(product.imageUrl);
+        const analysis = await analyzeWithGroq(product);
+        const creative = await generateCreativeWithGemini(product, analysis);
+        let imageUrl = product.hostedImageUrl || product.imageUrl;
+        try {
+          const b64 = await generateSceneImage(creative.imagePrompt, imageUrl);
+          const up = await uploadToImgBB(b64, "image/png");
+          imageUrl = up.url;
+        } catch {}
+        return { product, analysis, creative, imageUrl };
+      })();
+
+      serverQueue[idx].status = "done";
+      serverQueue[idx].content = pkg;
+      serverQueue[idx].completedAt = new Date().toISOString();
+    } catch(e) {
+      const idx = serverQueue.findIndex(q => q.id === item.id);
+      if (idx >= 0) { serverQueue[idx].status = "failed"; serverQueue[idx].error = e.message; }
+      console.error(`Queue item ${item.id} failed:`, e.message);
     }
+    saveQueue();
+    await new Promise(r => setTimeout(r, 2000)); // 2s between items
   }
+  isProcessing = false;
 }
 
-setInterval(processDueQueue, 4 * 60 * 60 * 1000);
-setTimeout(processDueQueue, 10000);
+setInterval(processQueue, 4 * 60 * 60 * 1000); // every 4 hours
 
-app.use((req, res) => res.status(404).json({ error: "Not found" }));
-app.listen(PORT, () => console.log(`Affiliate content engine running on port ${PORT}`));
+// ─── Server start ─────────────────────────────────────────────────────────────
+app.listen(PORT, () => {
+  console.log(`\n🚀 Amazon Content Engine running on port ${PORT}`);
+  console.log(`   Gemini: ${process.env.GEMINI_API_KEY ? "✅" : "❌ Not set"}`);
+  console.log(`   Groq:   ${process.env.GROQ_API_KEY   ? "✅" : "❌ Not set"}`);
+  console.log(`   ImgBB:  ${process.env.IMGBB_API_KEY  ? "✅" : "❌ Not set"}\n`);
+  processQueue(); // process any pending items on startup
+});
