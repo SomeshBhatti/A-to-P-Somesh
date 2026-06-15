@@ -163,38 +163,11 @@ function injectTag(url, tag) {
   catch { return url + (url.includes("?") ? "&" : "?") + "tag=" + t; }
 }
 
-// ─── Groq with retry + Gemini fallback ───────────────────────────────────────
-async function callGroqWithRetry(prompt, retries = 3) {
-  const key = process.env.GROQ_API_KEY;
-  if (!key) throw new Error("GROQ_API_KEY not set");
-  for (let attempt = 0; attempt < retries; attempt++) {
-    try {
-      const r = await axios.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        {
-          model: "llama-3.3-70b-versatile",
-          max_tokens: 1200,
-          messages: [{ role: "user", content: prompt }],
-          response_format: { type: "json_object" }
-        },
-        { headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, timeout: 30000 }
-      );
-      return JSON.parse(r.data.choices[0].message.content);
-    } catch(e) {
-      const status = e.response?.status;
-      const isRateLimit = status === 429 || status === 503;
-      if (isRateLimit && attempt < retries - 1) {
-        const wait = Math.pow(2, attempt + 1) * 3000; // 6s, 12s
-        console.log(`Groq rate limit (${status}), waiting ${wait/1000}s before retry ${attempt+2}/${retries}`);
-        await new Promise(r => setTimeout(r, wait));
-        continue;
-      }
-      throw e;
-    }
-  }
-}
-
+// ─── Gemini — product intelligence ──────────────────────────────────────────
 async function analyzeWithGroq(product) {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error("GEMINI_API_KEY not set in Render environment");
+
   const isIndia = (product.affiliateUrl || "").includes("amazon.in");
 
   const prompt = `You are an expert affiliate marketer specializing in ${isIndia ? "Indian" : "global"} e-commerce content.
@@ -231,62 +204,58 @@ Return ONLY valid JSON, no markdown:
   "imageSceneIdea": "Brief ideal lifestyle scene description"
 }`;
 
-  // Try Groq first
-  try {
-    return await callGroqWithRetry(prompt, 3);
-  } catch(groqErr) {
-    console.warn("Groq failed after retries:", groqErr.response?.status, groqErr.message, "— falling back to Gemini");
-
-    // Gemini fallback for analysis
-    const gemKey = process.env.GEMINI_API_KEY;
-    if (!gemKey) throw new Error("Both Groq (rate limited) and Gemini (no key) unavailable");
-
-    const r = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${gemKey}`,
-      {
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 1200, responseMimeType: "application/json" }
-      },
-      { headers: { "Content-Type": "application/json" }, timeout: 30000 }
-    );
-    return JSON.parse(r.data.candidates[0].content.parts[0].text);
-  }
+  const r = await axios.post(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+    {
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.7, maxOutputTokens: 1200, responseMimeType: "application/json" }
+    },
+    { headers: { "Content-Type": "application/json" }, timeout: 30000 }
+  );
+  return JSON.parse(r.data.candidates[0].content.parts[0].text);
 }
 
 // ─── Gemini — creative content (minimal tokens) ───────────────────────────────
-async function generateCreativeWithGemini(product, analysis) {
+async function generateCreativeWithGemini(product, analysis, platforms = ["pinterest","facebook","instagram","threads"]) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY not set");
+
+  const needsPinterest = platforms.includes("pinterest");
+  const needsFacebook  = platforms.includes("facebook");
+  const needsInstagram = platforms.includes("instagram");
+  const needsThreads   = platforms.includes("threads");
 
   const prompt = `You are an elite social media content creator for affiliate marketing.
 
 Product: ${product.title}
 Price: ${product.price || "N/A"}
 Brand: ${product.brand || "N/A"}
-Content Angle: ${analysis.contentAngle}
-Target Buyer: ${analysis.buyerPersona}
-Top Benefits: ${analysis.topBenefits?.join(", ")}
-Unique Hook: ${analysis.uniqueHook}
-Image Scene: ${analysis.imageSceneIdea}
+Content Angle: ${analysis.contentAngle || "lifestyle upgrade"}
+Target Buyer: ${analysis.buyerPersona || "quality-conscious shoppers"}
+Top Benefits: ${(analysis.topBenefits||[]).join(", ")}
+Unique Hook: ${analysis.uniqueHook || ""}
+Image Scene: ${analysis.imageSceneIdea || "modern lifestyle setting"}
 
-Create platform-optimized content. Return ONLY valid JSON:
+Generate content ONLY for these platforms: ${platforms.join(", ")}
+
+Return ONLY valid JSON with these exact keys:
 {
-  "headline": "2-5 word ALL CAPS Pinterest headline communicating main benefit",
-  "subHeadline": "Supporting line max 8 words",
-  "pinterest": {
+  "headline": "2-5 word ALL CAPS benefit headline (always required)",
+  "subHeadline": "Supporting line max 8 words (always required)",
+  ${needsPinterest ? `"pinterest": {
     "title": "SEO Pinterest title 60-100 chars with main keyword",
     "description": "Pinterest description 150-200 chars, benefit-focused, includes price, ends with soft CTA"
-  },
-  "facebook": {
-    "caption": "Facebook post 80-120 words. Open with hook. 2-3 paragraphs. Conversational. Uses emoji. Includes price. Ends with question or CTA. Affiliate disclosure: #ad"
-  },
-  "instagram": {
-    "caption": "Instagram caption 60-90 words. Aesthetic and aspirational. Line breaks for readability. 3-5 relevant emoji. Lifestyle-focused. Ends with CTA."
-  },
-  "threads": {
-    "post": "Threads post max 400 chars. Opinion or discovery style. Casual and authentic. e.g. 'Found this and had to share...' or 'This changed my routine...'"
-  },
-  "imagePrompt": "Detailed image generation prompt: Pinterest ad style, 1080x1920 vertical, ${product.title} as hero product, ${analysis.imageSceneIdea}, premium commercial photography, dramatic cinematic lighting, lifestyle environment, ultra realistic 8K, no text overlay, viral Pinterest aesthetic, professional advertising quality"
+  },` : ''}
+  ${needsFacebook ? `"facebook": {
+    "caption": "Facebook post 80-120 words. Hook opening. 2-3 paragraphs. Emoji. Price mention. CTA. Include #ad"
+  },` : ''}
+  ${needsInstagram ? `"instagram": {
+    "caption": "Instagram 60-90 words. Aesthetic. Line breaks. 3-5 emoji. Lifestyle angle. CTA."
+  },` : ''}
+  ${needsThreads ? `"threads": {
+    "post": "Threads max 400 chars. Casual discovery style. e.g. Found this and had to share..."
+  },` : ''}
+  "imagePrompt": "Pinterest ad style, 1080x1920 vertical pin, ${product.title} as centered hero product, ${analysis.imageSceneIdea || "modern lifestyle setting"}, premium commercial photography, dramatic cinematic lighting, ultra realistic 8K, no text overlay, viral Pinterest aesthetic"
 }`;
 
   const r = await axios.post(
@@ -366,65 +335,88 @@ app.post("/api/analyze-product", async (req, res) => {
 
 // ─── MAIN: Generate all content ───────────────────────────────────────────────
 app.post("/api/generate-content", async (req, res) => {
-  const { amazonUrl, product: existingProduct, analysis: existingAnalysis } = req.body;
+  const {
+    amazonUrl,
+    product: existingProduct,
+    analysis: existingAnalysis,
+    affiliateTag,
+    platforms = ["pinterest","facebook","instagram","threads"],
+    generateImage = true,
+  } = req.body;
 
   try {
-    // Step 1: Extract if no product provided
+    // Step 1: Extract product
     let product = existingProduct;
     if (!product && amazonUrl) {
       product = await scrapeAmazon(amazonUrl);
-      product.affiliateUrl = injectTag(amazonUrl);
+      product.affiliateUrl = injectTag(amazonUrl, affiliateTag);
       if (product.imageUrl) product.hostedImageUrl = await reHostImage(product.imageUrl);
     }
     if (!product) return res.status(400).json({ error: "No product data" });
 
-    // Step 2: Groq analysis (cheap)
+    // Step 2: Gemini analysis
     const analysis = existingAnalysis || await analyzeWithGroq(product);
 
-    // Step 3: Gemini creative (minimal tokens)
-    const creative = await generateCreativeWithGemini(product, analysis);
+    // Step 3: Gemini creative — only for selected platforms
+    const creative = await generateCreativeWithGemini(product, analysis, platforms);
 
-    // Step 4: Gemini image generation
+    // Step 4: Gemini image generation (only if requested)
     let generatedImageUrl = null;
-    try {
-      const b64 = await generateSceneImage(creative.imagePrompt, product.hostedImageUrl || product.imageUrl);
-      const uploaded = await uploadToImgBB(b64, "image/png");
-      generatedImageUrl = uploaded.url;
-    } catch(e) {
-      console.warn("Image gen failed:", e.message);
+    if (generateImage) {
+      try {
+        const b64 = await generateSceneImage(creative.imagePrompt, product.hostedImageUrl || product.imageUrl);
+        const uploaded = await uploadToImgBB(b64, "image/png");
+        generatedImageUrl = uploaded.url;
+        console.log("✅ Image uploaded:", generatedImageUrl.substring(0,60));
+      } catch(e) {
+        console.warn("Image gen failed:", e.message);
+        generatedImageUrl = product.hostedImageUrl || product.imageUrl || null;
+      }
+    } else {
       generatedImageUrl = product.hostedImageUrl || product.imageUrl || null;
     }
 
-    // Step 5: Build content package
+    // Step 5: Build content package for selected platforms only
     const pkg = {
       product,
       analysis,
       imageUrl: generatedImageUrl,
-      pinterest: {
-        title: creative.pinterest?.title || creative.headline,
+      affiliateUrl: product.affiliateUrl,
+      generatedAt: new Date().toISOString(),
+      platforms,
+    };
+
+    if (platforms.includes("pinterest")) {
+      pkg.pinterest = {
+        title: creative.pinterest?.title || creative.headline || "",
         description: creative.pinterest?.description || "",
         hashtags: analysis.hashtags?.pinterest || [],
-        headline: creative.headline,
-        subHeadline: creative.subHeadline,
+        headline: creative.headline || "",
+        subHeadline: creative.subHeadline || "",
+        imagePrompt: creative.imagePrompt || "",
         imageUrl: generatedImageUrl,
-      },
-      facebook: {
+      };
+    }
+    if (platforms.includes("facebook")) {
+      pkg.facebook = {
         caption: creative.facebook?.caption || "",
         hashtags: analysis.hashtags?.facebook || [],
         imageUrl: generatedImageUrl,
-      },
-      instagram: {
+      };
+    }
+    if (platforms.includes("instagram")) {
+      pkg.instagram = {
         caption: creative.instagram?.caption || "",
         hashtags: analysis.hashtags?.instagram || [],
         imageUrl: generatedImageUrl,
-      },
-      threads: {
+      };
+    }
+    if (platforms.includes("threads")) {
+      pkg.threads = {
         post: creative.threads?.post || "",
         hashtags: analysis.hashtags?.threads || [],
-      },
-      affiliateUrl: product.affiliateUrl,
-      generatedAt: new Date().toISOString(),
-    };
+      };
+    }
 
     res.json(pkg);
   } catch(e) {
