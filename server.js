@@ -8,13 +8,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Safely serve all frontend files (HTML, CSS, JS) from the root folder
+// This handles your flat file structure without breaking linked assets
+app.use(express.static(__dirname));
+
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const IMGBB_API_KEY = process.env.IMGBB_API_KEY;
 const AFFILIATE_TAG = process.env.AFFILIATE_TAG || 'yourtag-21';
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Helper: Call Gemini with Exponential Backoff
 async function callGeminiWithRetry(prompt, maxRetries = 4) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
@@ -40,28 +43,10 @@ async function callGeminiWithRetry(prompt, maxRetries = 4) {
     throw new Error("Max retries reached. Gemini API rate limit exceeded.");
 }
 
-// ROUTING FOR FLAT DIRECTORY STRUCTURE
-// Serves your homepage cleanly at the root URL
+// Fallback to explicitly serve index.html at the root URL
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
-
-// Serves your login page safely if accessed via /login or /login.html
-app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'login.html'));
-});
-app.get('/login.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'login.html'));
-});
-
-// Serves your privacy page safely if accessed via /privacy or /privacy.html
-app.get('/privacy', (req, res) => {
-    res.sendFile(path.join(__dirname, 'privacy.html'));
-});
-app.get('/privacy.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'privacy.html'));
-});
-
 
 // CORE API GENERATION ENDPOINT
 app.post('/api/generate', async (req, res) => {
