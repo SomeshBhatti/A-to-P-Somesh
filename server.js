@@ -2,22 +2,24 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const path = require('path'); // Added to handle file paths safely
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+
+// Serve static files from both the 'public' folder AND the root folder
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const IMGBB_API_KEY = process.env.IMGBB_API_KEY;
 const AFFILIATE_TAG = process.env.AFFILIATE_TAG || 'yourtag-21';
 
-// Helper: Sleep function for our delays
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Helper: Call Gemini with Exponential Backoff
 async function callGeminiWithRetry(prompt, maxRetries = 4) {
-    // Using 1.5-flash as it has the best free-tier rate limits and speed
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
     for (let i = 0; i < maxRetries; i++) {
@@ -30,7 +32,6 @@ async function callGeminiWithRetry(prompt, maxRetries = 4) {
             return response.data.candidates[0].content.parts[0].text;
         } catch (error) {
             if (error.response && error.response.status === 429) {
-                // Exponential backoff: 5s, 10s, 20s, 40s
                 const waitTime = Math.pow(2, i) * 5000; 
                 console.warn(`[429 Rate Limit] Gemini overloaded. Retrying in ${waitTime / 1000}s... (Attempt ${i + 1} of ${maxRetries})`);
                 await sleep(waitTime);
@@ -43,6 +44,20 @@ async function callGeminiWithRetry(prompt, maxRetries = 4) {
     throw new Error("Max retries reached. Gemini API rate limit exceeded.");
 }
 
+// Explicit root route handler to fallback safely if index.html is in the root directory
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'), (err) => {
+        if (err) {
+            // If it's not found in 'public', try serving it from the root directory
+            res.sendFile(path.join(__dirname, 'index.html'), (err2) => {
+                if (err2) {
+                    res.status(404).send("Error: index.html not found. Ensure your main HTML file is named exactly index.html and is located in either the main repository folder or a folder named 'public'.");
+                }
+            });
+        }
+    });
+});
+
 app.post('/api/generate', async (req, res) => {
     try {
         const { url, platforms } = req.body;
@@ -51,11 +66,8 @@ app.post('/api/generate', async (req, res) => {
             return res.status(400).json({ error: 'Amazon URL is required' });
         }
 
-        // 1. Scrape Basic Amazon Info (Mocked/Simplified for this example - replace with your actual scraper if needed)
-        // In a real scenario, you'd use Puppeteer or Cheerio here to get the title and description
         const cleanUrl = url.split('?')[0] + `?tag=${AFFILIATE_TAG}`;
         
-        // 2. Product Analysis via Gemini
         console.log("Analyzing product with Gemini...");
         const analysisPrompt = `Analyze this Amazon product link and extract the core features, target audience, and main selling points. URL: ${cleanUrl}`;
         const productAnalysis = await callGeminiWithRetry(analysisPrompt);
@@ -65,7 +77,6 @@ app.post('/api/generate', async (req, res) => {
             content: {}
         };
 
-        // 3. Generate Content based on Selected Platforms
         console.log("Generating platform-specific content...");
         
         if (platforms.pinterest) {
@@ -92,12 +103,10 @@ app.post('/api/generate', async (req, res) => {
             results.content.threads = await callGeminiWithRetry(threadsPrompt);
         }
 
-        // 4. Handle AI Image Generation (Mocked placeholder for whatever image API you were using)
         if (platforms.aiImage) {
             console.log("- Generating AI Image prompt...");
             const imagePrompt = await callGeminiWithRetry(`Create a short, descriptive image generation prompt (for DALL-E/Midjourney) based on this product: ${productAnalysis}`);
             results.content.aiImagePrompt = imagePrompt;
-            // Add your ImgBB / Image Generation API logic here if needed
         }
 
         res.json(results);
