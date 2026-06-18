@@ -11,11 +11,42 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GROK_API_KEY = process.env.GROK_API_KEY;
 const AFFILIATE_TAG = process.env.AFFILIATE_TAG || "yourtag-21";
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function callGeminiWithRetry(prompt, maxRetries = 4) {
+async function callGrokWithRetry(prompt, maxRetries = 3) {
+    const url = "https://api.x.ai/v1/chat/completions";
+
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            const response = await axios.post(url, {
+                model: "grok-2-latest",
+                messages: [{ role: "user", content: prompt }],
+                temperature: 0.3
+            }, {
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + GROK_API_KEY
+                }
+            });
+            return response.data.choices[0].message.content;
+        } catch (error) {
+            if (error.response && error.response.status === 429) {
+                const waitTime = Math.pow(2, i) * 3000; 
+                console.warn("[429 Rate Limit] Grok overloaded. Retrying in " + (waitTime / 1000) + "s...");
+                await sleep(waitTime);
+            } else {
+                console.error("Grok API Error:", error.response ? error.response.data : error.message);
+                throw new Error(error.response ? JSON.stringify(error.response.data) : error.message);
+            }
+        }
+    }
+    throw new Error("Grok API rate limit exceeded after maximum retries.");
+}
+
+async function callGeminiWithRetry(prompt, maxRetries = 3) {
     const url = "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=" + GEMINI_API_KEY;
 
     for (let i = 0; i < maxRetries; i++) {
@@ -28,7 +59,7 @@ async function callGeminiWithRetry(prompt, maxRetries = 4) {
             return response.data.candidates[0].content.parts[0].text;
         } catch (error) {
             if (error.response && error.response.status === 429) {
-                const waitTime = Math.pow(2, i) * 5000; 
+                const waitTime = Math.pow(2, i) * 3000; 
                 console.warn("[429 Rate Limit] Gemini overloaded. Retrying in " + (waitTime / 1000) + "s...");
                 await sleep(waitTime);
             } else {
@@ -54,43 +85,58 @@ app.post("/api/generate-content", async (req, res) => {
 
         const activeTag = affiliateTag || AFFILIATE_TAG;
         
-        // SAFE URL PARSING: Replaced .split with .indexOf to stop GitHub editor breaks
         let cleanUrl = amazonUrl;
         if (cleanUrl.indexOf("?") !== -1) {
             cleanUrl = cleanUrl.substring(0, cleanUrl.indexOf("?"));
         }
         cleanUrl = cleanUrl + "?tag=" + activeTag;
         
-        console.log("Analyzing product URL: " + cleanUrl);
+        console.log("Analyzing product URL with Grok: " + cleanUrl);
         
-        // SAFE STRING BUILDING: No backticks used here
-        const masterPrompt = "Analyze this Amazon product URL: " + cleanUrl + "\n" +
-        "Extract what you can from the URL string. Then, generate engaging Pinterest content.\n\n" +
-        "You MUST return a valid JSON object matching this exact structure. Do not include markdown blocks, just the raw JSON:\n" +
+        // STEP 1: Use Grok to analyze URL and extract product info
+        const analysisPrompt = "Extract product information from this Amazon URL: " + cleanUrl + "\n" +
+        "Return JSON with: title (exact product name from URL), brand, category, price (if visible). Just the JSON, no markdown:\n" +
         "{\n" +
-        "  \"product\": {\n" +
-        "    \"title\": \"A catchy product name based on the URL\",\n" +
-        "    \"brand\": \"Brand name if obvious, else Amazon product\",\n" +
-        "    \"category\": \"Product category\",\n" +
-        "    \"price\": \"Check Amazon Link\"\n" +
-        "  },\n" +
-        "  \"pinterest\": {\n" +
-        "    \"title\": \"Catchy Pin Title (50-60 chars)\",\n" +
-        "    \"description\": \"Engaging Pinterest description (150-200 chars)\",\n" +
-        "    \"hashtags\": [\"tag1\", \"tag2\", \"tag3\", \"tag4\", \"tag5\"]\n" +
-        "  }\n" +
+        "  \"title\": \"Product Name\",\n" +
+        "  \"brand\": \"Brand\",\n" +
+        "  \"category\": \"Category\",\n" +
+        "  \"price\": \"$XX\"\n" +
         "}";
-
-        const aiResponseText = await callGeminiWithRetry(masterPrompt);
-        console.log("Raw AI Response received.");
         
-        // SAFE REGEX: Avoids using slashes that confuse the editor
+        const productJsonText = await callGrokWithRetry(analysisPrompt);
         const codeBlockRegex = new RegExp("`{3}json", "gi");
         const backtickRegex = new RegExp("`{3}", "gi");
-        let cleanJsonText = aiResponseText.replace(codeBlockRegex, "").replace(backtickRegex, "").trim();
+        let cleanProductJson = productJsonText.replace(codeBlockRegex, "").replace(backtickRegex, "").trim();
+        const productInfo = JSON.parse(cleanProductJson);
         
-        const results = JSON.parse(cleanJsonText);
-        results.affiliateUrl = cleanUrl;
+        console.log("Product info extracted. Now generating creative content with Gemini...");
+        
+        // STEP 2: Use Gemini to generate creative Pinterest content
+        const creativePrompt = "Create engaging Pinterest content for this product:\n" +
+        "Title: " + productInfo.title + "\n" +
+        "Brand: " + productInfo.brand + "\n" +
+        "Category: " + productInfo.category + "\n\n" +
+        "Generate a Pinterest pin title (50-60 chars) and description (150-200 chars) plus 5 relevant hashtags.\n" +
+        "Return ONLY this JSON, no markdown:\n" +
+        "{\n" +
+        "  \"pinTitle\": \"Your catchy title\",\n" +
+        "  \"description\": \"Your engaging description\",\n" +
+        "  \"hashtags\": [\"tag1\", \"tag2\", \"tag3\", \"tag4\", \"tag5\"]\n" +
+        "}";
+        
+        const creativJsonText = await callGeminiWithRetry(creativePrompt);
+        let cleanCreativeJson = creativJsonText.replace(codeBlockRegex, "").replace(backtickRegex, "").trim();
+        const creativeContent = JSON.parse(cleanCreativeJson);
+        
+        const results = {
+            product: productInfo,
+            pinterest: {
+                title: creativeContent.pinTitle,
+                description: creativeContent.description,
+                hashtags: creativeContent.hashtags
+            },
+            affiliateUrl: cleanUrl
+        };
 
         res.json(results);
 
