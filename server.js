@@ -62,22 +62,27 @@ async function callGrokWithFallback(prompt, maxRetries = 3) {
     throw new Error("All Grok models failed or unavailable. Using Gemini for analysis.");
 }
 
-async function callGeminiWithRetry(prompt, maxRetries = 3) {
+async function callGeminiWithRetry(prompt, maxRetries = 5, delayBetweenRetries = 2000) {
     const url = "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=" + GEMINI_API_KEY;
 
     for (let i = 0; i < maxRetries; i++) {
         try {
+            console.log("Gemini attempt " + (i + 1) + " of " + maxRetries);
             const response = await axios.post(url, {
                 contents: [{ parts: [{ text: prompt }] }]
             }, {
                 headers: { "Content-Type": "application/json" },
-                timeout: 15000
+                timeout: 20000
             });
             return response.data.candidates[0].content.parts[0].text;
         } catch (error) {
             if (error.response && error.response.status === 429) {
-                const waitTime = Math.pow(2, i) * 3000; 
-                console.warn("[429 Rate Limit] Gemini overloaded. Retrying in " + (waitTime / 1000) + "s...");
+                const waitTime = delayBetweenRetries * Math.pow(2, i);
+                console.warn("[429 Rate Limit] Gemini quota exceeded. Waiting " + (waitTime / 1000) + "s before retry " + (i + 1) + "...");
+                await sleep(waitTime);
+            } else if (error.response && error.response.status === 503) {
+                const waitTime = delayBetweenRetries * Math.pow(2, i);
+                console.warn("[503 Service Unavailable] Gemini overloaded. Waiting " + (waitTime / 1000) + "s before retry " + (i + 1) + "...");
                 await sleep(waitTime);
             } else {
                 console.error("Gemini API Error:", error.response ? error.response.data : error.message);
@@ -85,7 +90,7 @@ async function callGeminiWithRetry(prompt, maxRetries = 3) {
             }
         }
     }
-    throw new Error("Gemini API rate limit exceeded after maximum retries.");
+    throw new Error("Gemini API rate limit exceeded after " + maxRetries + " retries. Please try again in a few minutes.");
 }
 
 app.get("/", (req, res) => {
@@ -130,7 +135,9 @@ app.post("/api/generate-content", async (req, res) => {
             console.log("✓ Grok analyzed product successfully");
         } catch (grokError) {
             console.log("Grok failed, using Gemini for analysis instead");
-            const productJsonText = await callGeminiWithRetry(analysisPrompt);
+            // Wait 2 seconds before calling Gemini to avoid rate limits
+            await sleep(2000);
+            const productJsonText = await callGeminiWithRetry(analysisPrompt, 5, 2500);
             const codeBlockRegex = new RegExp("`{3}json", "gi");
             const backtickRegex = new RegExp("`{3}", "gi");
             let cleanProductJson = productJsonText.replace(codeBlockRegex, "").replace(backtickRegex, "").trim();
@@ -138,7 +145,9 @@ app.post("/api/generate-content", async (req, res) => {
             console.log("✓ Gemini analyzed product successfully");
         }
         
-        console.log("Product info extracted. Now generating creative content with Gemini...");
+        console.log("Product info extracted. Waiting before creative content generation...");
+        // Wait 3 seconds between Gemini calls to respect free tier rate limits
+        await sleep(3000);
         
         // STEP 2: Use Gemini to generate creative Pinterest content
         const creativePrompt = "Create engaging Pinterest content for this product:\n" +
@@ -153,7 +162,7 @@ app.post("/api/generate-content", async (req, res) => {
         "  \"hashtags\": [\"tag1\", \"tag2\", \"tag3\", \"tag4\", \"tag5\"]\n" +
         "}";
         
-        const creativJsonText = await callGeminiWithRetry(creativePrompt);
+        const creativJsonText = await callGeminiWithRetry(creativePrompt, 5, 2500);
         const codeBlockRegex = new RegExp("`{3}json", "gi");
         const backtickRegex = new RegExp("`{3}", "gi");
         let cleanCreativeJson = creativJsonText.replace(codeBlockRegex, "").replace(backtickRegex, "").trim();
