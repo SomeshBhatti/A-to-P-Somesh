@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Amazon Content Engine</title>
+<title>Amazon to Pinterest</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -12,61 +12,41 @@
   --bdr:#2a2d35;--bdr2:#343840;
   --tx:#f0f0f0;--mt:#6b7280;--sub:#4b5563;
   --acc:#6366f1;--acc2:#818cf8;
-  --green:#22c55e;--red:#ef4444;--amber:#f59e0b;
-  --pin:#e60023;--fb:#1877f2;--ig:#e1306c;--th:#888;
+  --green:#22c55e;--red:#ef4444;--pin:#e60023;
 }
 body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;min-height:100vh}
 .header{background:var(--s1);border-bottom:1px solid var(--bdr);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100}
 .header-logo{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700}
-.header-logo-icon{width:30px;height:30px;background:var(--acc);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px}
-.header-nav{display:flex;gap:4px}
-.nav-btn{padding:6px 12px;background:transparent;border:none;color:var(--mt);font-size:13px;font-weight:500;cursor:pointer;border-radius:6px;font-family:'Inter',sans-serif;transition:all 0.15s}
-.nav-btn:hover{background:var(--s3);color:var(--tx)}
-.nav-btn.active{background:var(--s3);color:var(--tx)}
-.header-right{display:flex;align-items:center;gap:8px}
-.queue-badge{padding:4px 10px;background:var(--s3);border:1px solid var(--bdr);border-radius:6px;font-size:12px;color:var(--mt);cursor:pointer}
-.queue-badge span{color:var(--acc2);font-weight:600}
-.main{max-width:1200px;margin:0 auto;padding:24px 16px}
-.tab-content{display:none}.tab-content.active{display:block}
+.header-logo-icon{width:30px;height:30px;background:var(--pin);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.main{max-width:800px;margin:0 auto;padding:24px 16px}
 .input-card{background:var(--s1);border:1px solid var(--bdr);border-radius:14px;padding:24px;margin-bottom:20px}
 .input-label{font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--mt);margin-bottom:8px;display:block}
 .url-row{display:flex;gap:10px}
 .url-input{flex:1;background:var(--bg);border:1px solid var(--bdr);border-radius:9px;padding:12px 16px;font-family:'Inter',sans-serif;font-size:14px;color:var(--tx);outline:none;transition:border-color 0.2s}
 .url-input:focus{border-color:var(--acc)}
 .url-input::placeholder{color:var(--sub)}
-.btn-generate{padding:12px 24px;background:var(--acc);color:#fff;border:none;border-radius:9px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background 0.2s}
-.btn-generate:hover{background:var(--acc2)}
+.btn-generate{padding:12px 24px;background:var(--pin);color:#fff;border:none;border-radius:9px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;transition:opacity 0.2s}
+.btn-generate:hover{opacity:0.9}
 .btn-generate:disabled{opacity:0.45;cursor:not-allowed}
 .steps{display:flex;gap:16px;margin-top:16px;flex-wrap:wrap}
 .step{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mt)}
 .step-dot{width:8px;height:8px;border-radius:50%;background:var(--bdr2);flex-shrink:0;transition:all 0.3s}
 .step.done .step-dot{background:var(--green)}
-.step.active .step-dot{background:var(--acc);animation:pulse 1s ease infinite}
-.step.done{color:var(--green)}.step.active{color:var(--acc2)}
+.step.active .step-dot{background:var(--pin);animation:pulse 1s ease infinite}
+.step.done{color:var(--green)}.step.active{color:var(--pin)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
-.results{display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:20px}
-@media(max-width:750px){.results{grid-template-columns:1fr}}
-.image-panel{background:var(--s1);border:1px solid var(--bdr);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
-.image-panel img{width:100%;height:auto;display:block;cursor:pointer}
-.image-placeholder{width:100%;aspect-ratio:9/16;max-height:400px;background:var(--s2);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--mt);font-size:13px}
-.image-actions{padding:12px;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--bdr)}
-.img-url-box{font-size:10px;color:var(--sub);padding:8px;background:var(--bg);border-radius:6px;word-break:break-all;border:1px solid var(--bdr);max-height:50px;overflow:hidden}
-.content-cards{display:flex;flex-direction:column;gap:10px}
-.platform-card{background:var(--s1);border:1px solid var(--bdr);border-radius:14px;overflow:hidden}
+.platform-card{background:var(--s1);border:1px solid var(--bdr);border-radius:14px;overflow:hidden;margin-bottom:16px}
 .card-header{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bdr)}
 .card-platform{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
-.platform-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.platform-dot.pin{background:var(--pin)}.platform-dot.fb{background:var(--fb)}
-.platform-dot.ig{background:var(--ig)}.platform-dot.th{background:var(--th)}
+.platform-dot{width:10px;height:10px;border-radius:50%;background:var(--pin);flex-shrink:0}
 .card-actions{display:flex;gap:6px}
-.btn-sm{padding:5px 10px;border-radius:6px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--bdr);background:var(--s3);color:var(--mt);transition:all 0.15s}
+.btn-sm{padding:5px 10px;border-radius:6px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--bdr);background:var(--s3);color:var(--mt);transition:all 0.2s}
 .btn-sm:hover{color:var(--tx);border-color:var(--bdr2)}
 .btn-sm.copied{background:#14532d;color:var(--green);border-color:#166534}
 .card-body{padding:14px}
 .card-title{font-size:14px;font-weight:700;color:var(--tx);margin-bottom:6px;line-height:1.3}
-.card-content-area{position:relative}
 .card-text{font-size:12px;color:#aaa;line-height:1.7;margin-bottom:8px;white-space:pre-line;min-height:40px}
-.card-text[contenteditable="true"]{outline:1px solid var(--acc);border-radius:4px;padding:4px;color:var(--tx)}
+.card-text[contenteditable="true"]{outline:1px solid var(--pin);border-radius:4px;padding:4px;color:var(--tx)}
 .card-hashtags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .hashtag{font-size:10px;padding:2px 7px;background:var(--s3);border-radius:4px;color:var(--acc2)}
 .product-bar{background:var(--s2);border:1px solid var(--bdr);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;gap:12px;align-items:center}
@@ -75,34 +55,8 @@ body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;min-hei
 .product-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .product-meta{font-size:11px;color:var(--mt);margin-top:2px}
 .product-price{font-size:16px;font-weight:700;color:var(--green);flex-shrink:0}
-.bulk-area{background:var(--s1);border:1px solid var(--bdr);border-radius:14px;padding:20px;margin-bottom:16px}
-.bulk-textarea{width:100%;height:180px;background:var(--bg);border:1px solid var(--bdr);border-radius:9px;padding:12px 14px;font-family:'Inter',sans-serif;font-size:13px;color:var(--tx);outline:none;resize:vertical}
-.bulk-textarea::placeholder{color:var(--sub)}
-.bulk-textarea:focus{border-color:var(--acc)}
-.bulk-options{display:flex;gap:12px;margin:12px 0;flex-wrap:wrap;align-items:center}
-.platform-check{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--mt);cursor:pointer}
-.platform-check input{accent-color:var(--acc)}
-.bulk-item{background:var(--s2);border:1px solid var(--bdr);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:6px}
-.bulk-item-url{flex:1;font-size:12px;color:var(--mt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.status-badge{font-size:10px;padding:3px 8px;border-radius:4px;font-weight:600;flex-shrink:0}
-.status-badge.pending{background:#1c1917;color:var(--amber);border:1px solid #78350f}
-.status-badge.processing{background:#1e1b4b;color:var(--acc2);border:1px solid #3730a3}
-.status-badge.done{background:#14532d;color:var(--green);border:1px solid #166534}
-.status-badge.failed{background:#450a0a;color:var(--red);border:1px solid #7f1d1d}
-.queue-item{background:var(--s1);border:1px solid var(--bdr);border-radius:12px;padding:14px 16px;display:flex;gap:12px;align-items:center;margin-bottom:8px}
-.queue-item-info{flex:1;min-width:0}
-.queue-item-url{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
-.queue-item-meta{font-size:11px;color:var(--mt)}
-.queue-item-actions{display:flex;gap:6px;flex-shrink:0;align-items:center}
-.hist-item{background:var(--s1);border:1px solid var(--bdr);border-radius:12px;padding:14px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start}
-.hist-img{width:44px;height:44px;border-radius:8px;object-fit:cover;background:var(--bdr);flex-shrink:0}
-.hist-info{flex:1;min-width:0}
-.hist-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hist-meta{font-size:11px;color:var(--mt);margin-top:3px}
-.hist-platforms{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
-.hist-platform-dot{width:7px;height:7px;border-radius:50%}
 .loading-card{background:var(--s1);border:1px solid var(--bdr);border-radius:14px;padding:48px;text-align:center;margin-bottom:20px}
-.loading-spinner{width:38px;height:38px;border:3px solid var(--bdr);border-top-color:var(--acc);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px}
+.loading-spinner{width:38px;height:38px;border:3px solid var(--bdr);border-top-color:var(--pin);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-msg{font-size:14px;color:var(--mt);margin-bottom:6px}
 .loading-sub{font-size:12px;color:var(--sub)}
@@ -110,75 +64,35 @@ body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;min-hei
 .empty-icon{font-size:40px;margin-bottom:12px}
 .empty h3{font-size:16px;color:var(--mt);font-weight:500;margin-bottom:6px}
 .empty p{font-size:13px}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;z-index:9999;display:none;white-space:nowrap;max-width:90vw;text-align:center}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;z-index:9999;display:none;white-space:nowrap;max-width:90vw}
 .toast.ok{background:#14532d;color:var(--green);border:1px solid #166534}
 .toast.err{background:#450a0a;color:var(--red);border:1px solid #7f1d1d}
 .toast.info{background:var(--s3);color:var(--mt);border:1px solid var(--bdr)}
 .btn-outline{padding:8px 16px;background:transparent;border:1px solid var(--bdr);border-radius:8px;color:var(--mt);font-family:'Inter',sans-serif;font-size:13px;cursor:pointer;transition:all 0.15s}
 .btn-outline:hover{border-color:var(--bdr2);color:var(--tx)}
-.btn-danger{padding:7px 12px;background:transparent;border:1px solid #7f1d1d;border-radius:8px;color:var(--red);font-family:'Inter',sans-serif;font-size:12px;cursor:pointer}
-.btn-accent{padding:8px 16px;background:var(--acc);color:#fff;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer}
-select{background:var(--bg);border:1px solid var(--bdr);border-radius:8px;padding:8px 12px;color:var(--tx);font-family:'Inter',sans-serif;font-size:13px;outline:none;cursor:pointer}
-input[type=text],input[type=password]{background:var(--bg);border:1px solid var(--bdr);border-radius:8px;padding:10px 12px;color:var(--tx);font-family:'Inter',sans-serif;font-size:13px;outline:none;width:100%}
-input[type=text]:focus,input[type=password]:focus{border-color:var(--acc)}
-.settings-card{background:var(--s1);border:1px solid var(--bdr);border-radius:14px;padding:20px;margin-bottom:14px}
-.settings-section{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--sub);margin-bottom:12px}
-.field-row{display:flex;gap:10px;margin-bottom:12px;align-items:center}
-.field-row label{font-size:12px;color:var(--mt);width:120px;flex-shrink:0}
-.field-row input{flex:1}
-/* Result modal */
-.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px}
-.modal{background:var(--s1);border:1px solid var(--bdr);border-radius:16px;width:100%;max-width:900px;max-height:90vh;overflow-y:auto}
-.modal-header{padding:16px 20px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--s1);z-index:1}
-.modal-body{padding:20px}
-.modal-results{display:grid;grid-template-columns:220px 1fr;gap:14px}
-@media(max-width:600px){.modal-results{grid-template-columns:1fr}}
-.divider{border:none;border-top:1px solid var(--bdr);margin:14px 0}
+.action-buttons{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px}
 </style>
 </head>
 <body>
 
 <div class="header">
   <div class="header-logo">
-    <div class="header-logo-icon">🔗</div>
-    Amazon Content Engine
-  </div>
-  <div class="header-nav">
-    <button class="nav-btn active" id="nav-single" onclick="switchTab('single')">Single URL</button>
-    <button class="nav-btn" id="nav-bulk" onclick="switchTab('bulk')">Bulk Import</button>
-    <button class="nav-btn" id="nav-queue" onclick="switchTab('queue')">Queue</button>
-    <button class="nav-btn" id="nav-history" onclick="switchTab('history')">History</button>
-    <button class="nav-btn" id="nav-settings" onclick="switchTab('settings')">Settings</button>
-  </div>
-  <div class="header-right">
-    <div class="queue-badge" onclick="switchTab('queue')">⏰ <span id="queueCount">0</span></div>
+    <div class="header-logo-icon">📌</div>
+    Amazon to Pinterest
   </div>
 </div>
 
 <div class="main">
 
-<!-- ══ SINGLE URL ══ -->
-<div class="tab-content active" id="tabSingle">
   <div class="input-card">
     <label class="input-label">Amazon Product URL</label>
     <div class="url-row">
       <input class="url-input" id="amazonUrl" type="text" placeholder="https://www.amazon.in/dp/... or amzn.to/..."/>
       <button class="btn-generate" id="generateBtn" onclick="generateContent()">🚀 Generate</button>
     </div>
-    <div style="margin-top:14px;display:flex;gap:14px;flex-wrap:wrap;align-items:center">
-      <span style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mt)">Generate for:</span>
-      <label class="platform-check"><input type="checkbox" id="genPin" checked/> <span style="color:var(--pin)">Pinterest</span></label>
-      <label class="platform-check"><input type="checkbox" id="genFb" checked/> <span style="color:var(--fb)">Facebook</span></label>
-      <label class="platform-check"><input type="checkbox" id="genIg" checked/> <span style="color:var(--ig)">Instagram</span></label>
-      <label class="platform-check"><input type="checkbox" id="genTh" checked/> <span style="color:var(--th)">Threads</span></label>
-      <label class="platform-check"><input type="checkbox" id="genImg" checked/> <span style="color:var(--acc2)">AI Image</span></label>
-    </div>
     <div class="steps" id="steps" style="display:none">
-      <div class="step" id="step1"><div class="step-dot"></div>Extracting</div>
-      <div class="step" id="step2"><div class="step-dot"></div>Gemini analysis</div>
-      <div class="step" id="step3"><div class="step-dot"></div>Gemini content</div>
-      <div class="step" id="step4"><div class="step-dot"></div>AI image</div>
-      <div class="step" id="step5"><div class="step-dot"></div>ImgBB upload</div>
+      <div class="step" id="step1"><div class="step-dot"></div>Grok analyzing</div>
+      <div class="step" id="step2"><div class="step-dot"></div>Gemini creating</div>
     </div>
   </div>
 
@@ -194,87 +108,26 @@ input[type=text]:focus,input[type=password]:focus{border-color:var(--acc)}
   <div class="loading-card" id="loadingCard" style="display:none">
     <div class="loading-spinner"></div>
     <div class="loading-msg" id="loadingMsg">Starting…</div>
-    <div class="loading-sub">Takes 30–60 seconds · Groq + Gemini AI</div>
+    <div class="loading-sub">Takes 15-30 seconds</div>
   </div>
 
   <div id="resultsArea" style="display:none">
-    <div class="results">
-      <!-- Image -->
-      <div class="image-panel">
-        <div class="image-placeholder" id="imagePlaceholder"><span style="font-size:32px">🖼️</span><span>AI lifestyle image</span></div>
-        <img id="generatedImg" src="" alt="" style="display:none" onclick="window.open(this.src,'_blank')" title="Click to open full size"/>
-        <div class="image-actions">
-          <div class="img-url-box" id="imgUrlBox" style="display:none"></div>
-          <button class="btn-sm" id="copyImgBtn" onclick="copyImageUrl()" style="display:none;width:100%">📋 Copy Image URL</button>
-          <button class="btn-sm" onclick="regenerateImage()" style="width:100%;color:var(--acc2);border-color:var(--acc)">🔄 Regenerate Image</button>
+    <div class="platform-card" id="pinterestCard">
+      <div class="card-header">
+        <div class="card-platform"><div class="platform-dot"></div>Pinterest Pin</div>
+        <div class="card-actions">
+          <button class="btn-sm" onclick="toggleEdit('pin')">✏️ Edit</button>
+          <button class="btn-sm" id="copyPin" onclick="copyContent()">📋 Copy</button>
         </div>
       </div>
-
-      <!-- Platform cards -->
-      <div class="content-cards">
-        <!-- Pinterest -->
-        <div class="platform-card" id="pinterestCard">
-          <div class="card-header">
-            <div class="card-platform"><div class="platform-dot pin"></div>Pinterest</div>
-            <div class="card-actions">
-              <button class="btn-sm" onclick="toggleEdit('pin')">✏️ Edit</button>
-              <button class="btn-sm" id="copyPin" onclick="copyPlatform('pinterest')">📋 Copy</button>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="card-title" id="pinTitle">—</div>
-            <div class="card-text" id="pinDesc" data-platform="pinterest">—</div>
-            <div class="card-hashtags" id="pinTags"></div>
-          </div>
-        </div>
-        <!-- Facebook -->
-        <div class="platform-card" id="facebookCard">
-          <div class="card-header">
-            <div class="card-platform"><div class="platform-dot fb"></div>Facebook</div>
-            <div class="card-actions">
-              <button class="btn-sm" onclick="toggleEdit('fb')">✏️ Edit</button>
-              <button class="btn-sm" id="copyFb" onclick="copyPlatform('facebook')">📋 Copy</button>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="card-text" id="fbCaption" data-platform="facebook">—</div>
-            <div class="card-hashtags" id="fbTags"></div>
-          </div>
-        </div>
-        <!-- Instagram -->
-        <div class="platform-card" id="instagramCard">
-          <div class="card-header">
-            <div class="card-platform"><div class="platform-dot ig"></div>Instagram</div>
-            <div class="card-actions">
-              <button class="btn-sm" onclick="toggleEdit('ig')">✏️ Edit</button>
-              <button class="btn-sm" id="copyIg" onclick="copyPlatform('instagram')">📋 Copy</button>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="card-text" id="igCaption" data-platform="instagram">—</div>
-            <div class="card-hashtags" id="igTags"></div>
-          </div>
-        </div>
-        <!-- Threads -->
-        <div class="platform-card" id="threadsCard">
-          <div class="card-header">
-            <div class="card-platform"><div class="platform-dot th"></div>Threads</div>
-            <div class="card-actions">
-              <button class="btn-sm" onclick="toggleEdit('th')">✏️ Edit</button>
-              <button class="btn-sm" id="copyTh" onclick="copyPlatform('threads')">📋 Copy</button>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="card-text" id="thPost" data-platform="threads">—</div>
-            <div class="card-hashtags" id="thTags"></div>
-          </div>
-        </div>
+      <div class="card-body">
+        <div class="card-title" id="pinTitle">—</div>
+        <div class="card-text" id="pinDesc" data-platform="pinterest">—</div>
+        <div class="card-hashtags" id="pinTags"></div>
       </div>
     </div>
 
-    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
-      <button class="btn-outline" onclick="copyAll()">📋 Copy All Platforms</button>
-      <button class="btn-outline" onclick="addCurrentToQueue()">⏰ Add to Queue</button>
+    <div class="action-buttons">
       <button class="btn-outline" onclick="reset()">↩ New Product</button>
     </div>
   </div>
@@ -282,188 +135,34 @@ input[type=text]:focus,input[type=password]:focus{border-color:var(--acc)}
   <div class="empty" id="emptyState">
     <div class="empty-icon">⚡</div>
     <h3>Paste an Amazon URL above</h3>
-    <p>Groq analyzes → Gemini creates → AI generates image → Content for 4 platforms</p>
+    <p>Generate Pinterest-ready content in seconds</p>
   </div>
-</div>
 
-<!-- ══ BULK ══ -->
-<div class="tab-content" id="tabBulk">
-  <div class="bulk-area">
-    <label class="input-label">Amazon URLs — one per line (max 50)</label>
-    <textarea class="bulk-textarea" id="bulkUrls" placeholder="https://www.amazon.in/dp/B0ABC...&#10;https://amzn.to/xyz123&#10;https://www.amazon.in/dp/B0DEF..."></textarea>
-    <div class="bulk-options">
-      <span style="font-size:12px;color:var(--mt);font-weight:600">Platforms:</span>
-      <label class="platform-check"><input type="checkbox" id="chkPin" checked/> Pinterest</label>
-      <label class="platform-check"><input type="checkbox" id="chkFb" checked/> Facebook</label>
-      <label class="platform-check"><input type="checkbox" id="chkIg" checked/> Instagram</label>
-      <label class="platform-check"><input type="checkbox" id="chkTh" checked/> Threads</label>
-      <span style="flex:1"></span>
-      <select id="scheduleHrs">
-        <option value="4">Every 4 hrs</option>
-        <option value="8">Every 8 hrs</option>
-        <option value="12">Every 12 hrs</option>
-        <option value="24">Daily</option>
-      </select>
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn-generate" style="padding:10px 20px" onclick="runBulkImport()">📥 Import to Queue</button>
-      <button class="btn-outline" onclick="document.getElementById('csvUpload').click()">📂 Upload CSV</button>
-      <input type="file" id="csvUpload" accept=".csv,.txt" style="display:none" onchange="loadCSV(event)"/>
-    </div>
-  </div>
-  <div id="bulkResults"></div>
-</div>
-
-<!-- ══ QUEUE ══ -->
-<div class="tab-content" id="tabQueue">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-    <div>
-      <span style="font-size:16px;font-weight:700">Scheduled Queue</span>
-      <span style="font-size:12px;color:var(--mt);margin-left:8px">Auto-processes every 4 hours</span>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn-outline" onclick="loadQueue()">🔄 Refresh</button>
-      <button class="btn-danger" onclick="clearQueue()">🗑 Clear All</button>
-    </div>
-  </div>
-  <div id="queueList"><div class="empty"><div class="empty-icon">⏰</div><h3>Queue is empty</h3><p>Use Bulk Import to schedule content generation</p></div></div>
-</div>
-
-<!-- ══ HISTORY ══ -->
-<div class="tab-content" id="tabHistory">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-    <div>
-      <span style="font-size:16px;font-weight:700">Generation History</span>
-      <span style="font-size:12px;color:var(--mt);margin-left:8px" id="histCount"></span>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn-outline" onclick="exportHistoryCSV()">⬇️ Export CSV</button>
-      <button class="btn-danger" onclick="clearHistory()">🗑 Clear</button>
-    </div>
-  </div>
-  <div id="historyList"><div class="empty"><div class="empty-icon">📋</div><h3>No history yet</h3><p>Generated content will appear here</p></div></div>
-</div>
-
-<!-- ══ SETTINGS ══ -->
-<div class="tab-content" id="tabSettings">
-  <div class="settings-card">
-    <div class="settings-section">Affiliate</div>
-    <div class="field-row"><label>Associate Tag</label><input type="text" id="sAffTag" placeholder="yourtag-21"/></div>
-    <div style="font-size:11px;color:var(--sub);margin-top:-6px">Auto-appended to every Amazon link as ?tag=yourtag-21</div>
-  </div>
-  <div class="settings-card">
-    <div class="settings-section">Defaults</div>
-    <div class="field-row">
-      <label>Schedule interval</label>
-      <select id="sSchedule" style="flex:1">
-        <option value="4">Every 4 hours</option>
-        <option value="8">Every 8 hours</option>
-        <option value="12">Every 12 hours</option>
-        <option value="24">Daily</option>
-      </select>
-    </div>
-  </div>
-  <div class="settings-card">
-    <div class="settings-section">Environment Variables (set in Render)</div>
-    <div style="font-size:12px;color:var(--mt);line-height:2">
-      <code style="color:var(--acc2)">GEMINI_API_KEY</code> — AI Studio (free) · 
-      <code style="color:var(--acc2)">GROQ_API_KEY</code> — console.groq.com (free) · 
-      <code style="color:var(--acc2)">IMGBB_API_KEY</code> — imgbb.com (free) · 
-      <code style="color:var(--acc2)">AFFILIATE_TAG</code> — Amazon Associates tag
-    </div>
-  </div>
-  <button class="btn-accent" onclick="saveSettings()">💾 Save Settings</button>
-</div>
-
-</div><!-- /main -->
-
-<!-- Result modal (for viewing queue results) -->
-<div class="modal-bg" id="resultModal" style="display:none" onclick="if(event.target===this)closeModal()">
-  <div class="modal">
-    <div class="modal-header">
-      <span style="font-weight:700;font-size:15px" id="modalTitle">Content Result</span>
-      <button class="btn-sm" onclick="closeModal()">✕ Close</button>
-    </div>
-    <div class="modal-body" id="modalBody"></div>
-  </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-// ═══════════════════════════════════════════════════════════
-// STATE
-// ═══════════════════════════════════════════════════════════
 var currentPkg = null;
 var currentUrl = '';
-var editModes = { pin: false, fb: false, ig: false, th: false };
+var editMode = false;
 
-// ═══════════════════════════════════════════════════════════
-// SETTINGS
-// ═══════════════════════════════════════════════════════════
-var SK = 'ace_settings_v1';
-function loadSettings(){ try{ return JSON.parse(localStorage.getItem(SK))||{}; }catch{ return {}; } }
-function saveSettings(){
-  var s = {
-    affTag: document.getElementById('sAffTag').value.trim(),
-    schedule: document.getElementById('sSchedule').value,
-  };
-  localStorage.setItem(SK, JSON.stringify(s));
-  toast('✅ Settings saved', 'ok');
-}
-function initSettings(){
-  var s = loadSettings();
-  document.getElementById('sAffTag').value = s.affTag || '';
-  document.getElementById('sSchedule').value = s.schedule || '4';
-}
-
-// ═══════════════════════════════════════════════════════════
-// TABS
-// ═══════════════════════════════════════════════════════════
-function switchTab(name){
-  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('tab'+name.charAt(0).toUpperCase()+name.slice(1)).classList.add('active');
-  document.getElementById('nav-'+name).classList.add('active');
-  if(name==='queue') loadQueue();
-  if(name==='history') renderHistory();
-  if(name==='settings') initSettings();
-}
-
-// ═══════════════════════════════════════════════════════════
-// STEPS
-// ═══════════════════════════════════════════════════════════
 function setStep(n, state){ var el=document.getElementById('step'+n); if(el) el.className='step '+state; }
-function resetSteps(){ for(var i=1;i<=5;i++) setStep(i,''); }
+function resetSteps(){ for(var i=1;i<=2;i++) setStep(i,''); }
 
-// ═══════════════════════════════════════════════════════════
-// GENERATE
-// ═══════════════════════════════════════════════════════════
 async function generateContent(){
   var url = document.getElementById('amazonUrl').value.trim();
   if(!url){ toast('Paste an Amazon URL first','err'); return; }
   currentUrl = url;
-  var s = loadSettings();
 
   document.getElementById('generateBtn').disabled = true;
   show('emptyState',false); show('resultsArea',false); show('productBar',false);
   show('loadingCard',true); show('steps',true);
   resetSteps();
 
-  var genPlatforms = [];
-  if(document.getElementById('genPin').checked) genPlatforms.push('pinterest');
-  if(document.getElementById('genFb').checked) genPlatforms.push('facebook');
-  if(document.getElementById('genIg').checked) genPlatforms.push('instagram');
-  if(document.getElementById('genTh').checked) genPlatforms.push('threads');
-  var genImage = document.getElementById('genImg').checked;
-  if(!genPlatforms.length){ toast('Select at least one platform','err'); document.getElementById('generateBtn').disabled=false; return; }
-
   var stepMsgs = [
-    'Extracting product from Amazon…',
-    'Gemini analyzing product…',
-    'Gemini writing '+genPlatforms.join(', ')+' content…',
-    genImage ? 'Gemini generating lifestyle image…' : 'Skipping image generation…',
-    genImage ? 'Uploading to ImgBB…' : 'Done!',
+    'Grok analyzing product…',
+    'Gemini creating Pinterest content…'
   ];
   var mi = 0;
   setStep(1,'active'); setMsg(stepMsgs[0]);
@@ -472,25 +171,23 @@ async function generateContent(){
     mi = Math.min(mi+1, stepMsgs.length-1);
     setStep(mi+1,'active');
     setMsg(stepMsgs[mi]);
-  }, 9000);
+  }, 8000);
 
   try{
     var r = await fetch('/api/generate-content',{
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ amazonUrl: url, affiliateTag: s.affTag||'', platforms: genPlatforms, generateImage: genImage })
+      body: JSON.stringify({ amazonUrl: url, affiliateTag: '' })
     }).then(x=>x.json());
 
     clearInterval(iv);
-    for(var i=1;i<=5;i++) setStep(i,'done');
+    for(var i=1;i<=2;i++) setStep(i,'done');
     if(r.error) throw new Error(r.error);
 
     currentPkg = r;
-    renderResults(r, genPlatforms, genImage);
-    saveToHistory(r);
+    renderResults(r);
     show('loadingCard',false);
     show('resultsArea',true);
-    toast('✅ Content package ready!','ok');
-    loadQueueCount();
+    toast('✅ Content ready!','ok');
   }catch(e){
     clearInterval(iv);
     show('loadingCard',false);
@@ -502,20 +199,9 @@ async function generateContent(){
 
 function setMsg(m){ document.getElementById('loadingMsg').textContent = m; }
 
-// ═══════════════════════════════════════════════════════════
-// RENDER RESULTS
-// ═══════════════════════════════════════════════════════════
-function renderResults(pkg, platforms, hasImage){
+function renderResults(pkg){
   var p = pkg.product || {};
-  // Show/hide platform cards based on selection
-  var platformCardMap = {pinterest:'pinCard',facebook:'fbCard',instagram:'igCard',threads:'thCard'};
-  var allPlatforms = ['pinterest','facebook','instagram','threads'];
-  allPlatforms.forEach(function(pl){
-    var el = document.getElementById(pl+'Card');
-    if(el) el.style.display = (!platforms || platforms.includes(pl)) ? '' : 'none';
-  });
-
-  // Product bar
+  
   if(p.title){
     document.getElementById('productImg').src = p.hostedImageUrl||p.imageUrl||'';
     document.getElementById('productImg').style.display = 'block';
@@ -525,130 +211,34 @@ function renderResults(pkg, platforms, hasImage){
     show('productBar',true);
   }
 
-  // Generated image
-  if(pkg.imageUrl){
-    var gi = document.getElementById('generatedImg');
-    gi.src = pkg.imageUrl; gi.style.display = 'block';
-    document.getElementById('imagePlaceholder').style.display = 'none';
-    document.getElementById('imgUrlBox').textContent = pkg.imageUrl;
-    document.getElementById('imgUrlBox').style.display = 'block';
-    document.getElementById('copyImgBtn').style.display = 'block';
-  }
-
-  // Pinterest
   var pin = pkg.pinterest||{};
   document.getElementById('pinTitle').textContent = pin.title||'—';
   document.getElementById('pinDesc').textContent = pin.description||'—';
   renderTags('pinTags', pin.hashtags||[]);
-
-  // Facebook
-  var fb = pkg.facebook||{};
-  document.getElementById('fbCaption').textContent = fb.caption||'—';
-  renderTags('fbTags', fb.hashtags||[]);
-
-  // Instagram
-  var ig = pkg.instagram||{};
-  document.getElementById('igCaption').textContent = ig.caption||'—';
-  renderTags('igTags', ig.hashtags||[]);
-
-  // Threads
-  var th = pkg.threads||{};
-  document.getElementById('thPost').textContent = th.post||'—';
-  renderTags('thTags', th.hashtags||[]);
 }
 
 function renderTags(id, tags){
-  document.getElementById(id).innerHTML = tags.slice(0,15).map(t=>'<span class="hashtag">#'+t+'</span>').join('');
+  document.getElementById(id).innerHTML = tags.slice(0,10).map(t=>'<span class="hashtag">#'+t+'</span>').join('');
 }
 
-// ═══════════════════════════════════════════════════════════
-// EDITING
-// ═══════════════════════════════════════════════════════════
-var editMap = { pin:'pinDesc', fb:'fbCaption', ig:'igCaption', th:'thPost' };
-function toggleEdit(key){
-  var el = document.getElementById(editMap[key]);
+function toggleEdit(){
+  var el = document.getElementById('pinDesc');
   var isEditing = el.contentEditable === 'true';
   el.contentEditable = isEditing ? 'false' : 'true';
-  if(!isEditing){ el.focus(); toast('Click text to edit, click Edit again to save','info'); }
+  if(!isEditing){ el.focus(); toast('Edit and click again to save','info'); }
   else{ toast('Saved ✓','ok'); }
 }
 
-// ═══════════════════════════════════════════════════════════
-// COPY
-// ═══════════════════════════════════════════════════════════
-function copyPlatform(platform){
+function copyContent(){
   if(!currentPkg) return;
-  var text = buildPlatformText(platform, currentPkg);
+  var pin = currentPkg.pinterest||{};
+  var text = [(pin.title||''), (pin.description||''), (pin.hashtags||[]).map(h=>'#'+h).join(' ')].filter(Boolean).join('\n\n');
   navigator.clipboard.writeText(text).then(function(){
-    var idMap = {pinterest:'copyPin',facebook:'copyFb',instagram:'copyIg',threads:'copyTh'};
-    var btn = document.getElementById(idMap[platform]);
-    if(btn){ btn.textContent='✅ Copied!'; btn.classList.add('copied'); setTimeout(()=>{btn.textContent='📋 Copy';btn.classList.remove('copied');},2000); }
-    toast('Copied '+platform+' content!','ok');
+    var btn = document.getElementById('copyPin');
+    btn.textContent='✅ Copied!'; btn.classList.add('copied'); 
+    setTimeout(()=>{btn.textContent='📋 Copy';btn.classList.remove('copied');},2000);
+    toast('Content copied to clipboard!','ok');
   });
-}
-
-function buildPlatformText(platform, pkg){
-  var p = pkg[platform]||{};
-  if(platform==='pinterest') return [(p.title||''), (p.description||''), (p.hashtags||[]).map(h=>'#'+h).join(' ')].filter(Boolean).join('\n\n');
-  if(platform==='facebook') return [(p.caption||''), (p.hashtags||[]).map(h=>'#'+h).join(' ')].filter(Boolean).join('\n\n');
-  if(platform==='instagram') return [(p.caption||''), (p.hashtags||[]).map(h=>'#'+h).join(' ')].filter(Boolean).join('\n\n');
-  if(platform==='threads') return [(p.post||''), (p.hashtags||[]).map(h=>'#'+h).join(' ')].filter(Boolean).join('\n\n');
-  return '';
-}
-
-function copyAll(){
-  if(!currentPkg) return;
-  var sections = ['pinterest','facebook','instagram','threads'].map(function(p){
-    return '=== '+p.toUpperCase()+' ===\n'+buildPlatformText(p, currentPkg);
-  });
-  sections.push('=== IMAGE URL ===\n'+(currentPkg.imageUrl||''));
-  navigator.clipboard.writeText(sections.join('\n\n')).then(()=>toast('✅ All platforms copied!','ok'));
-}
-
-function copyImageUrl(){
-  if(!currentPkg?.imageUrl) return;
-  navigator.clipboard.writeText(currentPkg.imageUrl).then(()=>toast('Image URL copied!','ok'));
-}
-
-async function regenerateImage(){
-  if(!currentPkg) return;
-  toast('Regenerating with AI…','info');
-  try{
-    var imagePrompt = (currentPkg.pinterest?.imagePrompt) || 
-      ('Pinterest lifestyle ad, '+( currentPkg.product?.title||'')+', premium product photography, 1080x1920 vertical, ultra realistic');
-    var r = await fetch('/api/generate-image',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        imagePrompt,
-        productImageUrl: currentPkg.product?.hostedImageUrl||currentPkg.product?.imageUrl||''
-      })
-    }).then(x=>x.json());
-    if(r.error) throw new Error(r.error);
-    currentPkg.imageUrl = r.imageUrl;
-    var gi = document.getElementById('generatedImg');
-    gi.src = r.imageUrl; gi.style.display='block';
-    document.getElementById('imgUrlBox').textContent = r.imageUrl;
-    document.getElementById('imagePlaceholder').style.display='none';
-    toast('✅ New image ready!','ok');
-  }catch(e){ toast('❌ '+e.message,'err'); }
-}
-
-// ═══════════════════════════════════════════════════════════
-// QUEUE
-// ═══════════════════════════════════════════════════════════
-async function addCurrentToQueue(){
-  if(!currentUrl){ toast('No product to queue','err'); return; }
-  var s = loadSettings();
-  var hrs = parseInt(s.schedule||4);
-  var item = {
-    id: Date.now(), amazonUrl: currentUrl,
-    platforms:['pinterest','facebook','instagram','threads'],
-    status: 'done', scheduledAt: Date.now(),
-    content: currentPkg, createdAt: new Date().toISOString()
-  };
-  await fetch('/api/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(item)});
-  loadQueueCount();
-  toast('✅ Added to queue!','ok');
 }
 
 function reset(){
@@ -657,251 +247,10 @@ function reset(){
   show('resultsArea',false); show('productBar',false); show('loadingCard',false);
   show('emptyState',true); show('steps',false);
   resetSteps();
-  Object.keys(editMap).forEach(function(k){
-    var el=document.getElementById(editMap[k]);
-    if(el) el.contentEditable='false';
-  });
+  var el=document.getElementById('pinDesc');
+  if(el) el.contentEditable='false';
 }
 
-async function loadQueue(){
-  try{
-    var r = await fetch('/api/queue').then(x=>x.json());
-    renderQueue(r.queue||[]);
-    document.getElementById('queueCount').textContent = r.count||0;
-  }catch{}
-}
-
-async function loadQueueCount(){
-  try{
-    var r = await fetch('/api/queue').then(x=>x.json());
-    document.getElementById('queueCount').textContent = r.count||0;
-  }catch{}
-}
-
-function renderQueue(queue){
-  var el = document.getElementById('queueList');
-  if(!queue.length){
-    el.innerHTML='<div class="empty"><div class="empty-icon">⏰</div><h3>Queue is empty</h3><p>Use Bulk Import to schedule content generation</p></div>';
-    return;
-  }
-  el.innerHTML = queue.map(function(q){
-    var d = new Date(q.scheduledAt);
-    var when = d <= Date.now() ? '<span style="color:var(--red)">Overdue</span>' : d.toLocaleString('en-IN',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'});
-    return '<div class="queue-item">'
-      +'<div class="queue-item-info">'
-        +'<div class="queue-item-url">'+(q.amazonUrl||'No URL')+'</div>'
-        +'<div class="queue-item-meta">📅 '+when+' · '+(q.platforms||[]).join(', ')+'</div>'
-      +'</div>'
-      +'<div class="queue-item-actions">'
-        +(q.status==='done'&&q.content?'<button class="btn-sm" onclick="viewResult('+q.id+')">👁 View</button>':'')
-        +'<span class="status-badge '+q.status+'">'+q.status+'</span>'
-        +'<button class="btn-sm" onclick="removeQueueItem('+q.id+')">✕</button>'
-      +'</div>'
-      +'</div>';
-  }).join('');
-}
-
-async function removeQueueItem(id){
-  await fetch('/api/queue/'+id,{method:'DELETE'});
-  loadQueue(); loadQueueCount();
-}
-
-async function clearQueue(){
-  if(!confirm('Clear all queue items?')) return;
-  await fetch('/api/queue',{method:'DELETE'});
-  loadQueue(); loadQueueCount();
-}
-
-// View queue result in modal
-function viewResult(id){
-  fetch('/api/queue').then(x=>x.json()).then(function(r){
-    var item = (r.queue||[]).find(q=>q.id===id);
-    if(!item||!item.content) return toast('No content available','err');
-    openModal(item.content, item.amazonUrl);
-  });
-}
-
-function openModal(pkg, url){
-  var p = pkg.product||{};
-  document.getElementById('modalTitle').textContent = p.title||url||'Content Result';
-  var platforms = ['pinterest','facebook','instagram','threads'];
-  var html = '<div class="modal-results">'
-    +'<div>'
-      +(pkg.imageUrl?'<img src="'+pkg.imageUrl+'" style="width:100%;border-radius:10px;cursor:pointer" onclick="window.open(\''+pkg.imageUrl+'\',\'_blank\')"/>'
-        +'<div style="margin-top:8px"><button class="btn-sm" style="width:100%" onclick="navigator.clipboard.writeText(\''+pkg.imageUrl+'\').then(()=>toast(\'Copied!\',\'ok\'))">📋 Copy Image URL</button></div>'
-        :'<div style="background:var(--s2);border-radius:10px;aspect-ratio:9/16;max-height:300px;display:flex;align-items:center;justify-content:center;color:var(--mt)">No image</div>')
-    +'</div>'
-    +'<div style="display:flex;flex-direction:column;gap:10px">';
-
-  platforms.forEach(function(pl){
-    var data = pkg[pl]||{};
-    var content = '';
-    if(pl==='pinterest') content = (data.title||'')+(data.description?'\n\n'+data.description:'');
-    else if(pl==='facebook'||pl==='instagram') content = data.caption||data.post||'';
-    else content = data.post||'';
-    var tags = (data.hashtags||[]).slice(0,8).map(h=>'#'+h).join(' ');
-    var full = content+(tags?'\n\n'+tags:'');
-    var colors = {pinterest:'var(--pin)',facebook:'var(--fb)',instagram:'var(--ig)',threads:'var(--th)'};
-    html += '<div style="background:var(--s2);border-radius:10px;padding:12px">'
-      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-        +'<div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700">'
-          +'<div style="width:8px;height:8px;border-radius:50%;background:'+colors[pl]+';flex-shrink:0"></div>'
-          +pl.charAt(0).toUpperCase()+pl.slice(1)
-        +'</div>'
-        +'<button class="btn-sm" onclick="navigator.clipboard.writeText('+JSON.stringify(full)+').then(()=>toast(\'Copied!\',\'ok\'))">📋 Copy</button>'
-      +'</div>'
-      +'<div style="font-size:12px;color:#aaa;line-height:1.6;white-space:pre-line">'+content+'</div>'
-      +(tags?'<div style="margin-top:6px;font-size:10px;color:var(--acc2)">'+tags+'</div>':'')
-    +'</div>';
-  });
-
-  html += '</div></div>';
-  document.getElementById('modalBody').innerHTML = html;
-  document.getElementById('resultModal').style.display = 'flex';
-}
-
-function closeModal(){
-  document.getElementById('resultModal').style.display = 'none';
-}
-
-// ═══════════════════════════════════════════════════════════
-// BULK
-// ═══════════════════════════════════════════════════════════
-async function runBulkImport(){
-  var raw = document.getElementById('bulkUrls').value.trim();
-  var urls = raw.split('\n').map(u=>u.trim()).filter(Boolean).slice(0,50);
-  if(!urls.length){ toast('No URLs to import','err'); return; }
-  var platforms = [];
-  if(document.getElementById('chkPin').checked) platforms.push('pinterest');
-  if(document.getElementById('chkFb').checked) platforms.push('facebook');
-  if(document.getElementById('chkIg').checked) platforms.push('instagram');
-  if(document.getElementById('chkTh').checked) platforms.push('threads');
-  var scheduleHours = parseInt(document.getElementById('scheduleHrs').value);
-  try{
-    var r = await fetch('/api/bulk-import',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({urls,platforms,scheduleHours})
-    }).then(x=>x.json());
-    if(r.error) throw new Error(r.error);
-    toast('✅ '+r.added+' URLs added to queue','ok');
-    loadQueueCount();
-    document.getElementById('bulkResults').innerHTML =
-      '<div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--sub);margin:14px 0 8px">Added to Queue</div>'
-      +urls.map(u=>'<div class="bulk-item"><div class="bulk-item-url">'+u+'</div><span class="status-badge pending">Pending</span></div>').join('');
-  }catch(e){ toast('❌ '+e.message,'err'); }
-}
-
-function loadCSV(e){
-  var file=e.target.files[0]; if(!file) return;
-  var reader=new FileReader();
-  reader.onload=function(ev){
-    var lines=ev.target.result.split('\n');
-    var header=lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/"/g,''));
-    var urlIdx=header.indexOf('url');
-    var urls=[];
-    if(urlIdx>=0){ lines.slice(1).forEach(l=>{ var c=l.split(','); var u=(c[urlIdx]||'').trim().replace(/"/g,''); if(u) urls.push(u); }); }
-    else{ lines.forEach(l=>{ var u=l.trim().replace(/"/g,''); if(u.startsWith('http')) urls.push(u); }); }
-    document.getElementById('bulkUrls').value=urls.join('\n');
-    toast('✅ Loaded '+urls.length+' URLs','ok');
-  };
-  reader.readAsText(file);
-}
-
-// ═══════════════════════════════════════════════════════════
-// HISTORY
-// ═══════════════════════════════════════════════════════════
-var HK = 'ace_history_v1';
-function saveToHistory(pkg){
-  var hist = [];
-  try{ hist = JSON.parse(localStorage.getItem(HK))||[]; }catch{}
-  hist.unshift({
-    date: new Date().toISOString(),
-    title: pkg.product?.title||'Unknown product',
-    brand: pkg.product?.brand||'',
-    price: pkg.product?.price||'',
-    imageUrl: pkg.imageUrl||pkg.product?.hostedImageUrl||'',
-    affiliateUrl: pkg.affiliateUrl||'',
-    platforms: ['pinterest','facebook','instagram','threads'],
-    pkg: pkg
-  });
-  if(hist.length>200) hist=hist.slice(0,200);
-  localStorage.setItem(HK, JSON.stringify(hist));
-}
-
-function renderHistory(){
-  var hist = [];
-  try{ hist=JSON.parse(localStorage.getItem(HK))||[]; }catch{}
-  document.getElementById('histCount').textContent = hist.length+' items';
-  var el = document.getElementById('historyList');
-  if(!hist.length){
-    el.innerHTML='<div class="empty"><div class="empty-icon">📋</div><h3>No history yet</h3><p>Generated content will appear here</p></div>';
-    return;
-  }
-  el.innerHTML = hist.map(function(h,i){
-    var d = new Date(h.date).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
-    return '<div class="hist-item">'
-      +(h.imageUrl?'<img class="hist-img" src="'+h.imageUrl+'" onerror="this.style.display=\'none\'"/>':'<div class="hist-img" style="background:var(--s3);border-radius:8px"></div>')
-      +'<div class="hist-info">'
-        +'<div class="hist-title">'+h.title+'</div>'
-        +'<div class="hist-meta">'+d+(h.brand?' · '+h.brand:'')+(h.price?' · '+h.price:'')+'</div>'
-        +'<div class="hist-platforms">'
-          +'<div class="hist-platform-dot" style="background:var(--pin)"></div>'
-          +'<div class="hist-platform-dot" style="background:var(--fb)"></div>'
-          +'<div class="hist-platform-dot" style="background:var(--ig)"></div>'
-          +'<div class="hist-platform-dot" style="background:var(--th)"></div>'
-        +'</div>'
-      +'</div>'
-      +'<div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">'
-        +'<button class="btn-sm" onclick="viewHistoryItem('+i+')">👁 View</button>'
-        +(h.affiliateUrl?'<button class="btn-sm" onclick="navigator.clipboard.writeText(\''+h.affiliateUrl+'\').then(()=>toast(\'Copied!\',\'ok\'))">🔗 Link</button>':'')
-      +'</div>'
-    +'</div>';
-  }).join('');
-}
-
-function viewHistoryItem(i){
-  var hist=[];
-  try{ hist=JSON.parse(localStorage.getItem(HK))||[]; }catch{}
-  var item=hist[i];
-  if(!item) return;
-  openModal(item.pkg, item.title);
-}
-
-function exportHistoryCSV(){
-  var hist=[];
-  try{ hist=JSON.parse(localStorage.getItem(HK))||[]; }catch{}
-  if(!hist.length){ toast('No history to export','err'); return; }
-  var csv='Date,Title,Brand,Price,Image URL,Affiliate URL,Pinterest Title,Pinterest Desc,Facebook,Instagram,Threads\n';
-  hist.forEach(function(h){
-    var pin=h.pkg?.pinterest||{};var fb=h.pkg?.facebook||{};var ig=h.pkg?.instagram||{};var th=h.pkg?.threads||{};
-    csv+=[
-      new Date(h.date).toLocaleDateString('en-IN'),
-      '"'+(h.title||'').replace(/"/g,'""')+'"',
-      '"'+(h.brand||'').replace(/"/g,'""')+'"',
-      h.price||'',
-      h.imageUrl||'',
-      h.affiliateUrl||'',
-      '"'+(pin.title||'').replace(/"/g,'""')+'"',
-      '"'+(pin.description||'').replace(/"/g,'""')+'"',
-      '"'+(fb.caption||'').replace(/"/g,'""')+'"',
-      '"'+(ig.caption||'').replace(/"/g,'""')+'"',
-      '"'+(th.post||'').replace(/"/g,'""')+'"',
-    ].join(',')+'\n';
-  });
-  var a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-  a.download='content-history.csv';a.click();
-}
-
-function clearHistory(){
-  if(!confirm('Clear all history?')) return;
-  localStorage.removeItem(HK);
-  renderHistory();
-}
-
-// ═══════════════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════════════
 function show(id,v){ var el=document.getElementById(id); if(el) el.style.display=v?'':'none'; }
 var toastTimer;
 function toast(msg,type){
@@ -910,10 +259,6 @@ function toast(msg,type){
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.style.display='none',3500);
 }
 
-// ═══════════════════════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════════════════════
-loadQueueCount();
 document.getElementById('amazonUrl').addEventListener('keydown',function(e){ if(e.key==='Enter') generateContent(); });
 </script>
 </body>
