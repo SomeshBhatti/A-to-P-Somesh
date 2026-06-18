@@ -16,34 +16,50 @@ const AFFILIATE_TAG = process.env.AFFILIATE_TAG || "yourtag-21";
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function callGrokWithRetry(prompt, maxRetries = 3) {
-    const url = "https://api.x.ai/v1/chat/completions";
+async function callGrokWithFallback(prompt, maxRetries = 3) {
+    const models = ["grok-beta", "grok-vision-beta"];
+    
+    for (let modelIdx = 0; modelIdx < models.length; modelIdx++) {
+        const model = models[modelIdx];
+        const url = "https://api.x.ai/v1/chat/completions";
 
-    for (let i = 0; i < maxRetries; i++) {
-        try {
-            const response = await axios.post(url, {
-                model: "grok-2-latest",
-                messages: [{ role: "user", content: prompt }],
-                temperature: 0.3
-            }, {
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + GROK_API_KEY
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                console.log("Trying Grok with model: " + model);
+                const response = await axios.post(url, {
+                    model: model,
+                    messages: [{ role: "user", content: prompt }],
+                    temperature: 0.3
+                }, {
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + GROK_API_KEY
+                    },
+                    timeout: 15000
+                });
+                return response.data.choices[0].message.content;
+            } catch (error) {
+                if (error.response && error.response.status === 429) {
+                    const waitTime = Math.pow(2, i) * 3000; 
+                    console.warn("[429 Rate Limit] Grok overloaded. Retrying in " + (waitTime / 1000) + "s...");
+                    await sleep(waitTime);
+                } else if (error.response && error.response.status === 404) {
+                    console.warn("Model " + model + " not found. Trying next model...");
+                    break;
+                } else if (error.code === "ECONNABORTED") {
+                    console.warn("Grok timeout, trying next model...");
+                    break;
+                } else {
+                    console.error("Grok API Error:", error.response ? error.response.data : error.message);
+                    if (modelIdx === models.length - 1) {
+                        throw new Error(error.response ? JSON.stringify(error.response.data) : error.message);
+                    }
+                    break;
                 }
-            });
-            return response.data.choices[0].message.content;
-        } catch (error) {
-            if (error.response && error.response.status === 429) {
-                const waitTime = Math.pow(2, i) * 3000; 
-                console.warn("[429 Rate Limit] Grok overloaded. Retrying in " + (waitTime / 1000) + "s...");
-                await sleep(waitTime);
-            } else {
-                console.error("Grok API Error:", error.response ? error.response.data : error.message);
-                throw new Error(error.response ? JSON.stringify(error.response.data) : error.message);
             }
         }
     }
-    throw new Error("Grok API rate limit exceeded after maximum retries.");
+    throw new Error("All Grok models failed or unavailable. Using Gemini for analysis.");
 }
 
 async function callGeminiWithRetry(prompt, maxRetries = 3) {
@@ -54,7 +70,8 @@ async function callGeminiWithRetry(prompt, maxRetries = 3) {
             const response = await axios.post(url, {
                 contents: [{ parts: [{ text: prompt }] }]
             }, {
-                headers: { "Content-Type": "application/json" }
+                headers: { "Content-Type": "application/json" },
+                timeout: 15000
             });
             return response.data.candidates[0].content.parts[0].text;
         } catch (error) {
@@ -91,9 +108,10 @@ app.post("/api/generate-content", async (req, res) => {
         }
         cleanUrl = cleanUrl + "?tag=" + activeTag;
         
-        console.log("Analyzing product URL with Grok: " + cleanUrl);
+        console.log("Analyzing product URL: " + cleanUrl);
         
-        // STEP 1: Use Grok to analyze URL and extract product info
+        // STEP 1: Try Grok first, fall back to Gemini if it fails
+        let productInfo = null;
         const analysisPrompt = "Extract product information from this Amazon URL: " + cleanUrl + "\n" +
         "Return JSON with: title (exact product name from URL), brand, category, price (if visible). Just the JSON, no markdown:\n" +
         "{\n" +
@@ -103,11 +121,22 @@ app.post("/api/generate-content", async (req, res) => {
         "  \"price\": \"$XX\"\n" +
         "}";
         
-        const productJsonText = await callGrokWithRetry(analysisPrompt);
-        const codeBlockRegex = new RegExp("`{3}json", "gi");
-        const backtickRegex = new RegExp("`{3}", "gi");
-        let cleanProductJson = productJsonText.replace(codeBlockRegex, "").replace(backtickRegex, "").trim();
-        const productInfo = JSON.parse(cleanProductJson);
+        try {
+            const productJsonText = await callGrokWithFallback(analysisPrompt);
+            const codeBlockRegex = new RegExp("`{3}json", "gi");
+            const backtickRegex = new RegExp("`{3}", "gi");
+            let cleanProductJson = productJsonText.replace(codeBlockRegex, "").replace(backtickRegex, "").trim();
+            productInfo = JSON.parse(cleanProductJson);
+            console.log("✓ Grok analyzed product successfully");
+        } catch (grokError) {
+            console.log("Grok failed, using Gemini for analysis instead");
+            const productJsonText = await callGeminiWithRetry(analysisPrompt);
+            const codeBlockRegex = new RegExp("`{3}json", "gi");
+            const backtickRegex = new RegExp("`{3}", "gi");
+            let cleanProductJson = productJsonText.replace(codeBlockRegex, "").replace(backtickRegex, "").trim();
+            productInfo = JSON.parse(cleanProductJson);
+            console.log("✓ Gemini analyzed product successfully");
+        }
         
         console.log("Product info extracted. Now generating creative content with Gemini...");
         
@@ -125,6 +154,8 @@ app.post("/api/generate-content", async (req, res) => {
         "}";
         
         const creativJsonText = await callGeminiWithRetry(creativePrompt);
+        const codeBlockRegex = new RegExp("`{3}json", "gi");
+        const backtickRegex = new RegExp("`{3}", "gi");
         let cleanCreativeJson = creativJsonText.replace(codeBlockRegex, "").replace(backtickRegex, "").trim();
         const creativeContent = JSON.parse(cleanCreativeJson);
         
