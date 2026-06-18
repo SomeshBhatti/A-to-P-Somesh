@@ -21,8 +21,7 @@ async function callGeminiWithRetry(prompt, maxRetries = 4) {
     for (let i = 0; i < maxRetries; i++) {
         try {
             const response = await axios.post(url, {
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { responseMimeType: "application/json" }
+                contents: [{ parts: [{ text: prompt }] }]
             }, {
                 headers: { "Content-Type": "application/json" }
             });
@@ -47,7 +46,7 @@ app.get("/", (req, res) => {
 
 app.post("/api/generate-content", async (req, res) => {
     try {
-        const { amazonUrl, affiliateTag, platforms, generateImage } = req.body;
+        const { amazonUrl, affiliateTag } = req.body;
         
         if (!amazonUrl) {
             return res.status(400).json({ error: "Amazon URL is required" });
@@ -61,39 +60,24 @@ app.post("/api/generate-content", async (req, res) => {
             cleanUrl = cleanUrl.substring(0, cleanUrl.indexOf("?"));
         }
         cleanUrl = cleanUrl + "?tag=" + activeTag;
-
-        const platformsList = (platforms && platforms.length > 0) ? platforms.join(", ") : "pinterest, facebook, instagram, threads";
         
         console.log("Analyzing product URL: " + cleanUrl);
         
         // SAFE STRING BUILDING: No backticks used here
         const masterPrompt = "Analyze this Amazon product URL: " + cleanUrl + "\n" +
-        "Extract what you can from the URL string. Then, generate engaging social media content for these platforms: " + platformsList + ".\n\n" +
+        "Extract what you can from the URL string. Then, generate engaging Pinterest content.\n\n" +
         "You MUST return a valid JSON object matching this exact structure. Do not include markdown blocks, just the raw JSON:\n" +
         "{\n" +
         "  \"product\": {\n" +
         "    \"title\": \"A catchy product name based on the URL\",\n" +
         "    \"brand\": \"Brand name if obvious, else Amazon product\",\n" +
         "    \"category\": \"Product category\",\n" +
-        "    \"price\": \"Check Amazon Link\",\n" +
-        "    \"imageUrl\": \"https://via.placeholder.com/400?text=Product+Image\"\n" +
+        "    \"price\": \"Check Amazon Link\"\n" +
         "  },\n" +
         "  \"pinterest\": {\n" +
-        "    \"title\": \"Catchy Pin Title\",\n" +
-        "    \"description\": \"Engaging description\",\n" +
-        "    \"hashtags\": [\"tag1\", \"tag2\"]\n" +
-        "  },\n" +
-        "  \"facebook\": {\n" +
-        "    \"caption\": \"Engaging FB post\",\n" +
-        "    \"hashtags\": [\"tag1\", \"tag2\"]\n" +
-        "  },\n" +
-        "  \"instagram\": {\n" +
-        "    \"caption\": \"Aesthetic IG caption\",\n" +
-        "    \"hashtags\": [\"tag1\", \"tag2\"]\n" +
-        "  },\n" +
-        "  \"threads\": {\n" +
-        "    \"post\": \"Short punchy post\",\n" +
-        "    \"hashtags\": [\"tag1\", \"tag2\"]\n" +
+        "    \"title\": \"Catchy Pin Title (50-60 chars)\",\n" +
+        "    \"description\": \"Engaging Pinterest description (150-200 chars)\",\n" +
+        "    \"hashtags\": [\"tag1\", \"tag2\", \"tag3\", \"tag4\", \"tag5\"]\n" +
         "  }\n" +
         "}";
 
@@ -108,10 +92,6 @@ app.post("/api/generate-content", async (req, res) => {
         const results = JSON.parse(cleanJsonText);
         results.affiliateUrl = cleanUrl;
 
-        if (generateImage) {
-            results.imageUrl = "https://via.placeholder.com/600x800?text=AI+Generated+Image";
-        }
-
         res.json(results);
 
     } catch (error) {
@@ -119,15 +99,6 @@ app.post("/api/generate-content", async (req, res) => {
         res.status(500).json({ error: "Server Error: " + error.message });
     }
 });
-
-app.post("/api/generate-image", (req, res) => {
-    res.json({ imageUrl: "https://via.placeholder.com/600x800?text=Regenerated+AI+Image" });
-});
-
-app.get("/api/queue", (req, res) => res.json({ queue: [], count: 0 }));
-app.post("/api/queue", (req, res) => res.json({ success: true }));
-app.delete("/api/queue", (req, res) => res.json({ success: true }));
-app.delete("/api/queue/:id", (req, res) => res.json({ success: true }));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
