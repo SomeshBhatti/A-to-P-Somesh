@@ -1,265 +1,685 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Amazon to Pinterest</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#08090a;--s1:#0f1012;--s2:#16181c;--s3:#1e2024;
-  --bdr:#2a2d35;--bdr2:#343840;
-  --tx:#f0f0f0;--mt:#6b7280;--sub:#4b5563;
-  --acc:#6366f1;--acc2:#818cf8;
-  --green:#22c55e;--red:#ef4444;--pin:#e60023;
-}
-body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;min-height:100vh}
-.header{background:var(--s1);border-bottom:1px solid var(--bdr);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100}
-.header-logo{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700}
-.header-logo-icon{width:30px;height:30px;background:var(--pin);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
-.main{max-width:800px;margin:0 auto;padding:24px 16px}
-.input-card{background:var(--s1);border:1px solid var(--bdr);border-radius:14px;padding:24px;margin-bottom:20px}
-.input-label{font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--mt);margin-bottom:8px;display:block}
-.url-row{display:flex;gap:10px}
-.url-input{flex:1;background:var(--bg);border:1px solid var(--bdr);border-radius:9px;padding:12px 16px;font-family:'Inter',sans-serif;font-size:14px;color:var(--tx);outline:none;transition:border-color 0.2s}
-.url-input:focus{border-color:var(--acc)}
-.url-input::placeholder{color:var(--sub)}
-.btn-generate{padding:12px 24px;background:var(--pin);color:#fff;border:none;border-radius:9px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;transition:opacity 0.2s}
-.btn-generate:hover{opacity:0.9}
-.btn-generate:disabled{opacity:0.45;cursor:not-allowed}
-.steps{display:flex;gap:16px;margin-top:16px;flex-wrap:wrap}
-.step{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mt)}
-.step-dot{width:8px;height:8px;border-radius:50%;background:var(--bdr2);flex-shrink:0;transition:all 0.3s}
-.step.done .step-dot{background:var(--green)}
-.step.active .step-dot{background:var(--pin);animation:pulse 1s ease infinite}
-.step.done{color:var(--green)}.step.active{color:var(--pin)}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
-.platform-card{background:var(--s1);border:1px solid var(--bdr);border-radius:14px;overflow:hidden;margin-bottom:16px}
-.card-header{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bdr)}
-.card-platform{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
-.platform-dot{width:10px;height:10px;border-radius:50%;background:var(--pin);flex-shrink:0}
-.card-actions{display:flex;gap:6px}
-.btn-sm{padding:5px 10px;border-radius:6px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--bdr);background:var(--s3);color:var(--mt);transition:all 0.2s}
-.btn-sm:hover{color:var(--tx);border-color:var(--bdr2)}
-.btn-sm.copied{background:#14532d;color:var(--green);border-color:#166534}
-.card-body{padding:14px}
-.card-title{font-size:14px;font-weight:700;color:var(--tx);margin-bottom:6px;line-height:1.3}
-.card-text{font-size:12px;color:#aaa;line-height:1.7;margin-bottom:8px;white-space:pre-line;min-height:40px}
-.card-text[contenteditable="true"]{outline:1px solid var(--pin);border-radius:4px;padding:4px;color:var(--tx)}
-.card-hashtags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
-.hashtag{font-size:10px;padding:2px 7px;background:var(--s3);border-radius:4px;color:var(--acc2)}
-.product-bar{background:var(--s2);border:1px solid var(--bdr);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;gap:12px;align-items:center}
-.product-img-thumb{width:48px;height:48px;border-radius:8px;object-fit:cover;background:var(--bdr);flex-shrink:0}
-.product-info{flex:1;min-width:0}
-.product-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.product-meta{font-size:11px;color:var(--mt);margin-top:2px}
-.product-price{font-size:16px;font-weight:700;color:var(--green);flex-shrink:0}
-.loading-card{background:var(--s1);border:1px solid var(--bdr);border-radius:14px;padding:48px;text-align:center;margin-bottom:20px}
-.loading-spinner{width:38px;height:38px;border:3px solid var(--bdr);border-top-color:var(--pin);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px}
-@keyframes spin{to{transform:rotate(360deg)}}
-.loading-msg{font-size:14px;color:var(--mt);margin-bottom:6px}
-.loading-sub{font-size:12px;color:var(--sub)}
-.empty{text-align:center;padding:60px 20px;color:var(--sub)}
-.empty-icon{font-size:40px;margin-bottom:12px}
-.empty h3{font-size:16px;color:var(--mt);font-weight:500;margin-bottom:6px}
-.empty p{font-size:13px}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;z-index:9999;display:none;white-space:nowrap;max-width:90vw}
-.toast.ok{background:#14532d;color:var(--green);border:1px solid #166534}
-.toast.err{background:#450a0a;color:var(--red);border:1px solid #7f1d1d}
-.toast.info{background:var(--s3);color:var(--mt);border:1px solid var(--bdr)}
-.btn-outline{padding:8px 16px;background:transparent;border:1px solid var(--bdr);border-radius:8px;color:var(--mt);font-family:'Inter',sans-serif;font-size:13px;cursor:pointer;transition:all 0.15s}
-.btn-outline:hover{border-color:var(--bdr2);color:var(--tx)}
-.action-buttons{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A→P Pro | Amazon to Pinterest Content Generator</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+      background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding: 20px 0;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #00d4ff, #0099ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      color: #888;
+      font-weight: 400;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 40px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 24px;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      border-color: rgba(0, 212, 255, 0.3);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #ffffff;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 0.85rem;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    .input-group:last-child {
+      margin-bottom: 0;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    input[type="text"],
+    input[type="url"],
+    textarea {
+      width: 100%;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-family: inherit;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+      resize: none;
+    }
+
+    input[type="text"]:focus,
+    input[type="url"]:focus,
+    textarea:focus {
+      outline: none;
+      border-color: rgba(0, 212, 255, 0.5);
+      background: rgba(0, 212, 255, 0.05);
+      box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1);
+    }
+
+    textarea {
+      line-height: 1.5;
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #00d4ff, #0099ff);
+      color: #fff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 212, 255, 0.3);
+    }
+
+    .btn-primary:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: #00d4ff;
+      border: 1px solid rgba(0, 212, 255, 0.2);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: rgba(0, 212, 255, 0.1);
+      border-color: rgba(0, 212, 255, 0.4);
+    }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #00d4ff;
+      font-size: 0.9rem;
+      min-height: 40px;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(0, 212, 255, 0.2);
+      border-top-color: #00d4ff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .error {
+      background: rgba(255, 59, 48, 0.1);
+      border: 1px solid rgba(255, 59, 48, 0.3);
+      color: #ff6b6b;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      margin-top: 12px;
+      display: none;
+    }
+
+    .error.show {
+      display: block;
+    }
+
+    .success {
+      background: rgba(76, 175, 80, 0.1);
+      border: 1px solid rgba(76, 175, 80, 0.3);
+      color: #4caf50;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      margin-top: 12px;
+      display: none;
+    }
+
+    .success.show {
+      display: block;
+    }
+
+    .preview-section {
+      display: none;
+    }
+
+    .preview-section.show {
+      display: block;
+    }
+
+    .preview-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+    }
+
+    .preview-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 24px;
+      backdrop-filter: blur(10px);
+    }
+
+    .preview-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .pinterest-preview {
+      background: #e0e0e0;
+      border-radius: 8px;
+      overflow: hidden;
+      aspect-ratio: 9 / 16;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px;
+      color: #000;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      margin-bottom: 12px;
+    }
+
+    .pin-title {
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 8px;
+      word-break: break-word;
+    }
+
+    .pin-description {
+      font-size: 0.8rem;
+      opacity: 0.8;
+      margin-bottom: 8px;
+      word-break: break-word;
+    }
+
+    .pin-hashtags {
+      font-size: 0.75rem;
+      color: #0066cc;
+      word-break: break-word;
+    }
+
+    .content-section {
+      margin-bottom: 20px;
+    }
+
+    .content-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #888;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .content-value {
+      font-size: 0.9rem;
+      color: #e0e0e0;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 6px;
+      border-left: 2px solid rgba(0, 212, 255, 0.3);
+      word-break: break-word;
+      line-height: 1.5;
+    }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .tag {
+      display: inline-block;
+      background: rgba(0, 212, 255, 0.1);
+      color: #00d4ff;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      border: 1px solid rgba(0, 212, 255, 0.2);
+    }
+
+    .copy-btn {
+      background: rgba(0, 212, 255, 0.1);
+      color: #00d4ff;
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: 8px;
+      display: inline-block;
+      font-weight: 500;
+    }
+
+    .copy-btn:hover {
+      background: rgba(0, 212, 255, 0.2);
+      border-color: rgba(0, 212, 255, 0.4);
+    }
+
+    .copy-btn.copied {
+      background: rgba(76, 175, 80, 0.2);
+      color: #4caf50;
+      border-color: rgba(76, 175, 80, 0.4);
+    }
+
+    .full-width {
+      grid-column: 1 / -1;
+    }
+
+    @media (max-width: 768px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .preview-grid {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 1.8rem;
+      }
+
+      .preview-section {
+        margin-top: 40px;
+      }
+    }
+
+    .image-prompt-card {
+      grid-column: 1 / -1;
+    }
+  </style>
 </head>
 <body>
+  <div class="container">
+    <header>
+      <h1>A→P Pro</h1>
+      <p class="subtitle">Amazon to Pinterest Content Generator</p>
+    </header>
 
-<div class="header">
-  <div class="header-logo">
-    <div class="header-logo-icon">📌</div>
-    Amazon to Pinterest
-  </div>
-</div>
+    <div class="main-grid">
+      <!-- Input Card -->
+      <div class="card">
+        <div class="card-title">Generate Content</div>
 
-<div class="main">
+        <div class="input-group">
+          <label for="amazonUrl">Amazon Product URL</label>
+          <input
+            type="url"
+            id="amazonUrl"
+            placeholder="https://www.amazon.in/dp/..."
+            required
+          />
+        </div>
 
-  <div class="input-card">
-    <label class="input-label">Amazon Product URL</label>
-    <div class="url-row">
-      <input class="url-input" id="amazonUrl" type="text" placeholder="https://www.amazon.in/dp/... or amzn.to/..."/>
-      <button class="btn-generate" id="generateBtn" onclick="generateContent()">🚀 Generate</button>
-    </div>
-    <div class="steps" id="steps" style="display:none">
-      <div class="step" id="step1"><div class="step-dot"></div>Grok analyzing</div>
-      <div class="step" id="step2"><div class="step-dot"></div>Gemini creating</div>
-    </div>
-  </div>
+        <div class="input-group">
+          <label for="productTitle">Product Title</label>
+          <input
+            type="text"
+            id="productTitle"
+            placeholder="e.g., Premium Stainless Steel Water Bottle 1L"
+            required
+          />
+        </div>
 
-  <div class="product-bar" id="productBar" style="display:none">
-    <img class="product-img-thumb" id="productImg" src="" alt="" onerror="this.style.display='none'"/>
-    <div class="product-info">
-      <div class="product-name" id="productName"></div>
-      <div class="product-meta" id="productMeta"></div>
-    </div>
-    <div class="product-price" id="productPrice"></div>
-  </div>
+        <div class="input-group">
+          <label for="affiliateTag">Affiliate Tag (Optional)</label>
+          <input
+            type="text"
+            id="affiliateTag"
+            placeholder="e.g., yourtag-20"
+          />
+        </div>
 
-  <div class="loading-card" id="loadingCard" style="display:none">
-    <div class="loading-spinner"></div>
-    <div class="loading-msg" id="loadingMsg">Starting…</div>
-    <div class="loading-sub">Takes 15-30 seconds</div>
-  </div>
+        <div class="button-group">
+          <button class="btn-primary" id="generateBtn" onclick="generateContent()">
+            Generate
+          </button>
+        </div>
 
-  <div id="resultsArea" style="display:none">
-    <div class="platform-card" id="pinterestCard">
-      <div class="card-header">
-        <div class="card-platform"><div class="platform-dot"></div>Pinterest Pin</div>
-        <div class="card-actions">
-          <button class="btn-sm" onclick="toggleEdit('pin')">✏️ Edit</button>
-          <button class="btn-sm" id="copyPin" onclick="copyContent()">📋 Copy</button>
+        <div class="loading" id="loadingIndicator" style="display: none;">
+          <span class="spinner"></span>
+          <span>Creating Pinterest content</span>
+        </div>
+
+        <div class="error" id="errorMessage"></div>
+        <div class="success" id="successMessage"></div>
+      </div>
+
+      <!-- Info Card -->
+      <div class="card">
+        <div class="card-title">How It Works</div>
+        <div style="line-height: 1.8; font-size: 0.9rem; color: #aaa;">
+          <p style="margin-bottom: 12px;">
+            <strong style="color: #e0e0e0;">1. Enter Product Details</strong><br>
+            Paste your Amazon URL and product title.
+          </p>
+          <p style="margin-bottom: 12px;">
+            <strong style="color: #e0e0e0;">2. Click Generate</strong><br>
+            Our AI analyzes the product and creates optimized content.
+          </p>
+          <p>
+            <strong style="color: #e0e0e0;">3. Review & Use</strong><br>
+            Usually completes in under 10 seconds. Copy and use instantly.
+          </p>
         </div>
       </div>
-      <div class="card-body">
-        <div class="card-title" id="pinTitle">—</div>
-        <div class="card-text" id="pinDesc" data-platform="pinterest">—</div>
-        <div class="card-hashtags" id="pinTags"></div>
+    </div>
+
+    <!-- Preview Section -->
+    <div class="preview-section" id="previewSection">
+      <div class="preview-grid">
+        <!-- Pinterest Pin Preview -->
+        <div class="preview-card">
+          <div class="preview-title">Pinterest Pin Preview</div>
+          <div class="pinterest-preview" id="pinPreview">
+            <div>
+              <div class="pin-title" id="previewTitle">Your pin title here</div>
+              <div class="pin-description" id="previewDescription">
+                Your pin description here
+              </div>
+            </div>
+            <div class="pin-hashtags" id="previewHashtags">#pin #design</div>
+          </div>
+          <button class="copy-btn" onclick="copyPinContent()">Copy Pin Text</button>
+        </div>
+
+        <!-- Product & SEO Info -->
+        <div class="preview-card">
+          <div class="preview-title">Product & SEO Details</div>
+
+          <div class="content-section">
+            <div class="content-label">Product Title</div>
+            <div class="content-value" id="productNameDisplay">-</div>
+          </div>
+
+          <div class="content-section">
+            <div class="content-label">Brand</div>
+            <div class="content-value" id="brandDisplay">-</div>
+          </div>
+
+          <div class="content-section">
+            <div class="content-label">Category</div>
+            <div class="content-value" id="categoryDisplay">-</div>
+          </div>
+
+          <div class="content-section">
+            <div class="content-label">SEO Keywords</div>
+            <div class="tag-list" id="seoKeywordsList"></div>
+          </div>
+
+          <div class="content-section">
+            <div class="content-label">Pinterest Hashtags</div>
+            <div class="tag-list" id="hashtagsList"></div>
+          </div>
+        </div>
+
+        <!-- Image Prompt Card -->
+        <div class="preview-card image-prompt-card">
+          <div class="preview-title">Image Prompt for AI Generation</div>
+          <div class="content-section">
+            <div class="content-label">Detailed Prompt</div>
+            <div class="content-value" id="imagePromptDisplay">-</div>
+            <button class="copy-btn" onclick="copyImagePrompt()">Copy Prompt</button>
+          </div>
+        </div>
       </div>
     </div>
-
-    <div class="action-buttons">
-      <button class="btn-outline" onclick="reset()">↩ New Product</button>
-    </div>
   </div>
 
-  <div class="empty" id="emptyState">
-    <div class="empty-icon">⚡</div>
-    <h3>Paste an Amazon URL above</h3>
-    <p>Generate Pinterest-ready content in seconds</p>
-  </div>
+  <script>
+    const API_BASE_URL = window.location.origin;
 
-</div>
+    async function generateContent() {
+      const amazonUrl = document.getElementById('amazonUrl').value.trim();
+      const productTitle = document.getElementById('productTitle').value.trim();
+      const affiliateTag = document.getElementById('affiliateTag').value.trim();
 
-<div class="toast" id="toast"></div>
+      // Clear previous states
+      clearMessages();
+      document.getElementById('previewSection').classList.remove('show');
 
-<script>
-var currentPkg = null;
-var currentUrl = '';
-var editMode = false;
+      // Validation
+      if (!amazonUrl) {
+        showError('Please enter an Amazon product URL');
+        return;
+      }
 
-function setStep(n, state){ var el=document.getElementById('step'+n); if(el) el.className='step '+state; }
-function resetSteps(){ for(var i=1;i<=2;i++) setStep(i,''); }
+      if (!productTitle) {
+        showError('Please enter the product title');
+        return;
+      }
 
-async function generateContent(){
-  var url = document.getElementById('amazonUrl').value.trim();
-  if(!url){ toast('Paste an Amazon URL first','err'); return; }
-  currentUrl = url;
+      // Show loading
+      document.getElementById('loadingIndicator').style.display = 'flex';
+      document.getElementById('generateBtn').disabled = true;
 
-  document.getElementById('generateBtn').disabled = true;
-  show('emptyState',false); show('resultsArea',false); show('productBar',false);
-  show('loadingCard',true); show('steps',true);
-  resetSteps();
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/generate-content`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amazonUrl,
+            productTitle,
+            affiliateTag: affiliateTag || '',
+          }),
+        });
 
-  var stepMsgs = [
-    'Grok analyzing product…',
-    'Gemini creating Pinterest content…'
-  ];
-  var mi = 0;
-  setStep(1,'active'); setMsg(stepMsgs[0]);
-  var iv = setInterval(function(){
-    setStep(mi+1,'done');
-    mi = Math.min(mi+1, stepMsgs.length-1);
-    setStep(mi+1,'active');
-    setMsg(stepMsgs[mi]);
-  }, 8000);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to generate content');
+        }
 
-  try{
-    var r = await fetch('/api/generate-content',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ amazonUrl: url, affiliateTag: '' })
-    }).then(x=>x.json());
+        const data = await response.json();
+        displayResults(data);
+        if (data.cached) {
+          showSuccess('Content loaded from cache (previously generated)');
+        } else {
+          showSuccess('Content generated successfully!');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        showError(error.message || 'An error occurred. Please try again.');
+      } finally {
+        document.getElementById('loadingIndicator').style.display = 'none';
+        document.getElementById('generateBtn').disabled = false;
+      }
+    }
 
-    clearInterval(iv);
-    for(var i=1;i<=2;i++) setStep(i,'done');
-    if(r.error) throw new Error(r.error);
+    function displayResults(data) {
+      const pkg = data;
 
-    currentPkg = r;
-    renderResults(r);
-    show('loadingCard',false);
-    show('resultsArea',true);
-    toast('✅ Content ready!','ok');
-  }catch(e){
-    clearInterval(iv);
-    show('loadingCard',false);
-    show('emptyState',true);
-    toast('❌ '+(e.message||'Generation failed'),'err');
-  }
-  document.getElementById('generateBtn').disabled = false;
-}
+      // Pinterest Preview
+      document.getElementById('previewTitle').textContent = pkg.pinterest.title;
+      document.getElementById('previewDescription').textContent = pkg.pinterest.description;
+      document.getElementById('previewHashtags').textContent = pkg.pinterest.hashtags.join(' ');
 
-function setMsg(m){ document.getElementById('loadingMsg').textContent = m; }
+      // Product Info
+      document.getElementById('productNameDisplay').textContent = pkg.product.title;
+      document.getElementById('brandDisplay').textContent = pkg.product.brand;
+      document.getElementById('categoryDisplay').textContent = pkg.product.category;
 
-function renderResults(pkg){
-  var p = pkg.product || {};
-  
-  if(p.title){
-    document.getElementById('productImg').src = p.hostedImageUrl||p.imageUrl||'';
-    document.getElementById('productImg').style.display = 'block';
-    document.getElementById('productName').textContent = p.title;
-    document.getElementById('productMeta').textContent = [p.brand, p.category].filter(Boolean).join(' · ');
-    document.getElementById('productPrice').textContent = p.price||'';
-    show('productBar',true);
-  }
+      // SEO Keywords
+      const seoKeywordsList = document.getElementById('seoKeywordsList');
+      seoKeywordsList.innerHTML = pkg.seo.keywords
+        .map(k => `<div class="tag">${k}</div>`)
+        .join('');
 
-  var pin = pkg.pinterest||{};
-  document.getElementById('pinTitle').textContent = pin.title||'—';
-  document.getElementById('pinDesc').textContent = pin.description||'—';
-  renderTags('pinTags', pin.hashtags||[]);
-}
+      // Hashtags
+      const hashtagsList = document.getElementById('hashtagsList');
+      hashtagsList.innerHTML = pkg.pinterest.hashtags
+        .map(h => `<div class="tag">${h}</div>`)
+        .join('');
 
-function renderTags(id, tags){
-  document.getElementById(id).innerHTML = tags.slice(0,10).map(t=>'<span class="hashtag">#'+t+'</span>').join('');
-}
+      // Image Prompt
+      document.getElementById('imagePromptDisplay').textContent = pkg.imagePrompt;
 
-function toggleEdit(){
-  var el = document.getElementById('pinDesc');
-  var isEditing = el.contentEditable === 'true';
-  el.contentEditable = isEditing ? 'false' : 'true';
-  if(!isEditing){ el.focus(); toast('Edit and click again to save','info'); }
-  else{ toast('Saved ✓','ok'); }
-}
+      // Show preview section
+      document.getElementById('previewSection').classList.add('show');
 
-function copyContent(){
-  if(!currentPkg) return;
-  var pin = currentPkg.pinterest||{};
-  var text = [(pin.title||''), (pin.description||''), (pin.hashtags||[]).map(h=>'#'+h).join(' ')].filter(Boolean).join('\n\n');
-  navigator.clipboard.writeText(text).then(function(){
-    var btn = document.getElementById('copyPin');
-    btn.textContent='✅ Copied!'; btn.classList.add('copied'); 
-    setTimeout(()=>{btn.textContent='📋 Copy';btn.classList.remove('copied');},2000);
-    toast('Content copied to clipboard!','ok');
-  });
-}
+      // Scroll to results
+      setTimeout(() => {
+        document.getElementById('previewSection').scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
 
-function reset(){
-  currentPkg=null; currentUrl='';
-  document.getElementById('amazonUrl').value='';
-  show('resultsArea',false); show('productBar',false); show('loadingCard',false);
-  show('emptyState',true); show('steps',false);
-  resetSteps();
-  var el=document.getElementById('pinDesc');
-  if(el) el.contentEditable='false';
-}
+    function copyPinContent() {
+      const title = document.getElementById('previewTitle').textContent;
+      const description = document.getElementById('previewDescription').textContent;
+      const hashtags = document.getElementById('previewHashtags').textContent;
 
-function show(id,v){ var el=document.getElementById(id); if(el) el.style.display=v?'':'none'; }
-var toastTimer;
-function toast(msg,type){
-  var t=document.getElementById('toast');
-  t.textContent=msg; t.className='toast '+(type||'info'); t.style.display='block';
-  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.style.display='none',3500);
-}
+      const text = `${title}\n\n${description}\n\n${hashtags}`;
+      copyToClipboard(text, event.target);
+    }
 
-document.getElementById('amazonUrl').addEventListener('keydown',function(e){ if(e.key==='Enter') generateContent(); });
-</script>
+    function copyImagePrompt() {
+      const prompt = document.getElementById('imagePromptDisplay').textContent;
+      copyToClipboard(prompt, event.target);
+    }
+
+    function copyToClipboard(text, buttonElement) {
+      navigator.clipboard.writeText(text).then(() => {
+        const originalText = buttonElement.textContent;
+        buttonElement.textContent = 'Copied!';
+        buttonElement.classList.add('copied');
+
+        setTimeout(() => {
+          buttonElement.textContent = originalText;
+          buttonElement.classList.remove('copied');
+        }, 2000);
+      });
+    }
+
+    function showError(message) {
+      const errorEl = document.getElementById('errorMessage');
+      errorEl.textContent = message;
+      errorEl.classList.add('show');
+    }
+
+    function showSuccess(message) {
+      const successEl = document.getElementById('successMessage');
+      successEl.textContent = message;
+      successEl.classList.add('show');
+    }
+
+    function clearMessages() {
+      document.getElementById('errorMessage').classList.remove('show');
+      document.getElementById('successMessage').classList.remove('show');
+    }
+
+    // Allow Enter key to generate
+    document.getElementById('productTitle').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        generateContent();
+      }
+    });
+
+    document.getElementById('amazonUrl').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        generateContent();
+      }
+    });
+  </script>
 </body>
 </html>
