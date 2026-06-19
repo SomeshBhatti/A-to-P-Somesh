@@ -21,9 +21,9 @@ function getCacheKey(amazonUrl, productTitle) {
   return `${amazonUrl}||${productTitle}`;
 }
 
-// Gemini 1.5 Flash Latest API endpoint
+// Gemini 2.0 Flash API endpoint
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent';
+const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 // Retry logic - max 3 retries
 async function callGeminiWithRetry(payload, retries = 3) {
