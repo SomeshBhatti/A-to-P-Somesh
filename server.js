@@ -21,31 +21,36 @@ function getCacheKey(amazonUrl, productTitle) {
   return `${amazonUrl}||${productTitle}`;
 }
 
-// Gemini 2.0 Flash API endpoint
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+// xAI Grok 4 Mini API endpoint
+const GROK_API_KEY = process.env.GROK_API_KEY;
+const GROK_ENDPOINT = 'https://api.x.ai/v1/chat/completions';
 
 // Retry logic - max 3 retries
-async function callGeminiWithRetry(payload, retries = 3) {
+async function callGrokWithRetry(messages, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      console.log(`[Gemini API] Attempt ${attempt}/${retries}`);
+      console.log(`[Grok API] Attempt ${attempt}/${retries}`);
       
       const response = await axios.post(
-        `${GEMINI_ENDPOINT}?key=${GEMINI_API_KEY}`,
-        payload,
+        GROK_ENDPOINT,
+        {
+          model: 'grok-4-mini',
+          messages: messages,
+          temperature: 0.7,
+        },
         {
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${GROK_API_KEY}`,
           },
           timeout: 30000,
         }
       );
 
-      console.log('[Gemini API] Success');
+      console.log('[Grok API] Success');
       return response.data;
     } catch (error) {
-      console.error(`[Gemini API] Attempt ${attempt} failed:`, {
+      console.error(`[Grok API] Attempt ${attempt} failed:`, {
         status: error.response?.status,
         statusText: error.response?.statusText,
         errorData: error.response?.data,
@@ -54,20 +59,20 @@ async function callGeminiWithRetry(payload, retries = 3) {
 
       if (attempt === retries) {
         throw new Error(
-          `Gemini API failed after ${retries} retries: ${error.response?.data?.error?.message || error.message}`
+          `Grok API failed after ${retries} retries: ${error.response?.data?.error?.message || error.message}`
         );
       }
 
       // Wait before retry (exponential backoff)
       const delay = Math.pow(2, attempt - 1) * 1000;
-      console.log(`[Gemini API] Retrying in ${delay}ms...`);
+      console.log(`[Grok API] Retrying in ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 }
 
-// Single Gemini request to generate all content
-async function generateContentWithGemini(amazonUrl, productTitle, affiliateTag = '') {
+// Single Grok request to generate all content
+async function generateContentWithGrok(amazonUrl, productTitle, affiliateTag = '') {
   const systemPrompt = `You are an expert Amazon product analyst and Pinterest content creator. Your task is to analyze a product and generate high-quality Pinterest pin content, SEO data, and image prompt instructions.
 
 Return ONLY valid JSON (no markdown, no code blocks, no explanations). The response MUST be parseable JSON.`;
@@ -99,40 +104,27 @@ Return a JSON object with this exact structure:
 
 Generate ONLY the JSON response. No other text.`;
 
-  const payload = {
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          {
-            text: userPrompt,
-          },
-        ],
-      },
-    ],
-    systemInstruction: {
-      parts: [
-        {
-          text: systemPrompt,
-        },
-      ],
+  const messages = [
+    {
+      role: 'user',
+      content: userPrompt,
     },
-  };
+  ];
 
-  console.log('[Content Generation] Starting Gemini request');
-  const geminiResponse = await callGeminiWithRetry(payload);
+  console.log('[Content Generation] Starting Grok request');
+  const grokResponse = await callGrokWithRetry(messages);
 
-  // Extract text from Gemini response
+  // Extract text from Grok response
   let generatedText = '';
-  if (geminiResponse.candidates && geminiResponse.candidates.length > 0) {
-    const content = geminiResponse.candidates[0].content;
-    if (content && content.parts && content.parts.length > 0) {
-      generatedText = content.parts[0].text;
+  if (grokResponse.choices && grokResponse.choices.length > 0) {
+    const message = grokResponse.choices[0].message;
+    if (message && message.content) {
+      generatedText = message.content;
     }
   }
 
   if (!generatedText) {
-    throw new Error('No text content returned from Gemini API');
+    throw new Error('No text content returned from Grok API');
   }
 
   console.log('[Content Generation] Raw response:', generatedText.substring(0, 200));
@@ -151,7 +143,7 @@ Generate ONLY the JSON response. No other text.`;
   } catch (parseError) {
     console.error('[Content Generation] JSON parse error:', parseError.message);
     console.error('[Content Generation] Failed text:', generatedText);
-    throw new Error(`Failed to parse Gemini response as JSON: ${parseError.message}`);
+    throw new Error(`Failed to parse Grok response as JSON: ${parseError.message}`);
   }
 
   // Validate response structure
@@ -162,7 +154,7 @@ Generate ONLY the JSON response. No other text.`;
     !parsedData.imageConcepts ||
     !parsedData.imagePrompt
   ) {
-    throw new Error('Gemini response missing required fields');
+    throw new Error('Grok response missing required fields');
   }
 
   return parsedData;
@@ -198,7 +190,7 @@ app.post('/api/generate-content', async (req, res) => {
     console.log('[Request] Processing:', { amazonUrl: amazonUrl.substring(0, 50), productTitle });
 
     // Generate content
-    const content = await generateContentWithGemini(amazonUrl, productTitle, affiliateTag || '');
+    const content = await generateContentWithGrok(amazonUrl, productTitle, affiliateTag || '');
 
     // Store in cache
     responseCache.set(cacheKey, content);
@@ -223,5 +215,5 @@ app.get('/api/last-affiliate-tag', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`Gemini API Key: ${GEMINI_API_KEY ? 'Configured' : 'NOT SET'}`);
+  console.log(`Grok API Key: ${GROK_API_KEY ? 'Configured' : 'NOT SET'}`);
 });
