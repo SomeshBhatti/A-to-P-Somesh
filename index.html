@@ -529,6 +529,24 @@
   <script>
     const API_BASE_URL = window.location.origin;
 
+    // Load last affiliate tag on page load
+    async function loadLastAffiliateTag() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/last-affiliate-tag`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.lastAffiliateTag) {
+            document.getElementById('affiliateTag').value = data.lastAffiliateTag;
+          }
+        }
+      } catch (error) {
+        console.log('Could not load last affiliate tag');
+      }
+    }
+
+    // Load on page load
+    window.addEventListener('load', loadLastAffiliateTag);
+
     async function generateContent() {
       const amazonUrl = document.getElementById('amazonUrl').value.trim();
       const productTitle = document.getElementById('productTitle').value.trim();
