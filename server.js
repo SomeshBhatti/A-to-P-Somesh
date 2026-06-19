@@ -8,9 +8,13 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static('.'));
 
 // Cache for responses
 const responseCache = new Map();
+
+// Store last used affiliate tag
+let lastAffiliateTag = '';
 
 // Generate cache key from URL + Product Title
 function getCacheKey(amazonUrl, productTitle) {
@@ -179,11 +183,16 @@ app.post('/api/generate-content', async (req, res) => {
       return res.status(400).json({ error: 'Product Title is required' });
     }
 
+    // Save affiliate tag for future use
+    if (affiliateTag && affiliateTag.trim()) {
+      lastAffiliateTag = affiliateTag.trim();
+    }
+
     // Check cache
     const cacheKey = getCacheKey(amazonUrl, productTitle);
     if (responseCache.has(cacheKey)) {
       console.log('[Cache] Hit for:', cacheKey);
-      return res.json({ cached: true, ...responseCache.get(cacheKey) });
+      return res.json({ cached: true, lastAffiliateTag, ...responseCache.get(cacheKey) });
     }
 
     console.log('[Request] Processing:', { amazonUrl: amazonUrl.substring(0, 50), productTitle });
@@ -194,7 +203,7 @@ app.post('/api/generate-content', async (req, res) => {
     // Store in cache
     responseCache.set(cacheKey, content);
 
-    res.json(content);
+    res.json({ lastAffiliateTag, ...content });
   } catch (error) {
     console.error('[API Error]', error.message);
     res.status(500).json({
@@ -206,6 +215,10 @@ app.post('/api/generate-content', async (req, res) => {
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/last-affiliate-tag', (req, res) => {
+  res.json({ lastAffiliateTag });
 });
 
 app.listen(PORT, () => {
