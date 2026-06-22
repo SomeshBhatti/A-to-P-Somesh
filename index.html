@@ -403,22 +403,18 @@
 
         <div class="input-group">
           <label for="amazonUrl">Amazon Product URL</label>
-          <input
-            type="url"
-            id="amazonUrl"
-            placeholder="https://www.amazon.in/dp/..."
-            required
-          />
-        </div>
-
-        <div class="input-group">
-          <label for="productTitle">Product Title</label>
-          <input
-            type="text"
-            id="productTitle"
-            placeholder="e.g., Premium Stainless Steel Water Bottle 1L"
-            required
-          />
+          <div style="display: flex; gap: 8px;">
+            <input
+              type="url"
+              id="amazonUrl"
+              placeholder="https://www.amazon.in/dp/..."
+              style="flex: 1;"
+              required
+            />
+            <button class="btn-secondary" onclick="pasteFromClipboard()" style="flex: 0 0 auto; padding: 12px 14px;">
+              Paste
+            </button>
+          </div>
         </div>
 
         <div class="input-group">
@@ -450,12 +446,12 @@
         <div class="card-title">How It Works</div>
         <div style="line-height: 1.8; font-size: 0.9rem; color: #aaa;">
           <p style="margin-bottom: 12px;">
-            <strong style="color: #e0e0e0;">1. Enter Product Details</strong><br>
-            Paste your Amazon URL and product title.
+            <strong style="color: #e0e0e0;">1. Paste Amazon URL</strong><br>
+            Click Paste or manually enter the product link.
           </p>
           <p style="margin-bottom: 12px;">
             <strong style="color: #e0e0e0;">2. Click Generate</strong><br>
-            Our AI analyzes the product and creates optimized content.
+            Our AI extracts and analyzes the product automatically.
           </p>
           <p>
             <strong style="color: #e0e0e0;">3. Review & Use</strong><br>
@@ -549,7 +545,6 @@
 
     async function generateContent() {
       const amazonUrl = document.getElementById('amazonUrl').value.trim();
-      const productTitle = document.getElementById('productTitle').value.trim();
       const affiliateTag = document.getElementById('affiliateTag').value.trim();
 
       // Clear previous states
@@ -559,11 +554,6 @@
       // Validation
       if (!amazonUrl) {
         showError('Please enter an Amazon product URL');
-        return;
-      }
-
-      if (!productTitle) {
-        showError('Please enter the product title');
         return;
       }
 
@@ -579,7 +569,6 @@
           },
           body: JSON.stringify({
             amazonUrl,
-            productTitle,
             affiliateTag: affiliateTag || '',
           }),
         });
@@ -686,13 +675,18 @@
       document.getElementById('successMessage').classList.remove('show');
     }
 
-    // Allow Enter key to generate
-    document.getElementById('productTitle').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        generateContent();
+    // Paste from clipboard
+    async function pasteFromClipboard() {
+      try {
+        const text = await navigator.clipboard.readText();
+        document.getElementById('amazonUrl').value = text;
+        document.getElementById('amazonUrl').focus();
+      } catch (err) {
+        showError('Could not read clipboard');
       }
-    });
+    }
 
+    // Allow Enter key to generate
     document.getElementById('amazonUrl').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
         generateContent();
