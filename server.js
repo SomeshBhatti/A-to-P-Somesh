@@ -28,12 +28,12 @@ function getCacheKey(amazonUrl, productTitle) {
 const MODELS = {
   groq: {
     name: 'Groq',
-    endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+    endpoint: 'https://api.groq.com/v1/chat/completions',
     apiKey: process.env.GROQ_API_KEY,
-    model: 'groq/compound',
+    model: 'mixtral-8x7b-32768',
     timeout: 30000,
     enabled: !!process.env.GROQ_API_KEY,
-    type: 'openai', // Uses OpenAI-compatible format
+    type: 'openai',
   },
   ollama: {
     name: 'Ollama (Local)',
@@ -71,6 +71,8 @@ async function callAIModel(modelConfig, messages, retries = 2) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       console.log(`[${modelConfig.name}] Attempt ${attempt}/${retries}`);
+      console.log(`[${modelConfig.name}] Endpoint: ${modelConfig.endpoint}`);
+      console.log(`[${modelConfig.name}] Model: ${modelConfig.model}`);
 
       const headers = {
         'Content-Type': 'application/json',
@@ -80,13 +82,17 @@ async function callAIModel(modelConfig, messages, retries = 2) {
         headers['Authorization'] = `Bearer ${modelConfig.apiKey}`;
       }
 
+      const payload = {
+        model: modelConfig.model,
+        messages: messages,
+        temperature: 0.7,
+      };
+
+      console.log(`[${modelConfig.name}] Payload size:`, JSON.stringify(payload).length, 'bytes');
+
       const response = await axios.post(
         modelConfig.endpoint,
-        {
-          model: modelConfig.model,
-          messages: messages,
-          temperature: 0.7,
-        },
+        payload,
         {
           headers,
           timeout: modelConfig.timeout,
@@ -101,6 +107,7 @@ async function callAIModel(modelConfig, messages, retries = 2) {
         statusText: error.response?.statusText,
         errorData: error.response?.data,
         message: error.message,
+        code: error.code,
       });
 
       if (attempt === retries) {
@@ -128,22 +135,20 @@ async function generateContentWithFallback(amazonUrl, affiliateTag = '') {
     );
   }
 
-  const userPrompt = `Analyze Amazon URL: ${amazonUrl}
+  const userPrompt = `Analyze: ${amazonUrl}
 
-Generate JSON:
+Return JSON only:
 {
   "product": {"title": "", "brand": "", "category": ""},
   "pinterest": {
-    "title": "50-60 chars, SEO keyword-rich",
-    "description": "150-200 chars, benefit-focused, CTA",
+    "title": "Pinterest title (50-60 chars)",
+    "description": "Pinterest description (150-200 chars)",
     "hashtags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
   },
-  "seo": {"keywords": ["key1", "key2", "key3", "key4", "key5"]},
-  "imageConcepts": ["concept1", "concept2", "concept3"],
-  "imagePrompt": "Pinterest vertical 1080x1920, photorealistic, lifestyle, product integrated, space for text overlay, high CTR commercial"
-}
-
-Return ONLY JSON, no markdown.`;
+  "seo": {"keywords": ["key1", "key2", "key3"]},
+  "imageConcepts": ["concept1", "concept2"],
+  "imagePrompt": "Pinterest vertical 1080x1920 pin prompt"
+}`;
 
   const messages = [
     {
