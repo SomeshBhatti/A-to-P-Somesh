@@ -21,36 +21,36 @@ function getCacheKey(amazonUrl, productTitle) {
   return `${amazonUrl}||${productTitle}`;
 }
 
-// xAI Grok 4 Mini API endpoint
-const GROK_API_KEY = process.env.GROK_API_KEY;
-const GROK_ENDPOINT = 'https://api.x.ai/v1/chat/completions';
+// Groq API endpoint
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 
 // Retry logic - max 3 retries
-async function callGrokWithRetry(messages, retries = 3) {
+async function callGroqWithRetry(messages, retries = 3) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      console.log(`[Grok API] Attempt ${attempt}/${retries}`);
+      console.log(`[Groq API] Attempt ${attempt}/${retries}`);
       
       const response = await axios.post(
-        GROK_ENDPOINT,
+        GROQ_ENDPOINT,
         {
-          model: 'grok-4-mini',
+          model: 'groq/compound',
           messages: messages,
           temperature: 0.7,
         },
         {
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${GROK_API_KEY}`,
+            'Authorization': `Bearer ${GROQ_API_KEY}`,
           },
           timeout: 30000,
         }
       );
 
-      console.log('[Grok API] Success');
+      console.log('[Groq API] Success');
       return response.data;
     } catch (error) {
-      console.error(`[Grok API] Attempt ${attempt} failed:`, {
+      console.error(`[Groq API] Attempt ${attempt} failed:`, {
         status: error.response?.status,
         statusText: error.response?.statusText,
         errorData: error.response?.data,
@@ -59,20 +59,20 @@ async function callGrokWithRetry(messages, retries = 3) {
 
       if (attempt === retries) {
         throw new Error(
-          `Grok API failed after ${retries} retries: ${error.response?.data?.error?.message || error.message}`
+          `Groq API failed after ${retries} retries: ${error.response?.data?.error?.message || error.message}`
         );
       }
 
       // Wait before retry (exponential backoff)
       const delay = Math.pow(2, attempt - 1) * 1000;
-      console.log(`[Grok API] Retrying in ${delay}ms...`);
+      console.log(`[Groq API] Retrying in ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 }
 
-// Single Grok request to generate all content
-async function generateContentWithGrok(amazonUrl, productTitle, affiliateTag = '') {
+// Single Groq request to generate all content
+async function generateContentWithGroq(amazonUrl, productTitle, affiliateTag = '') {
   const systemPrompt = `You are an expert Amazon product analyst and Pinterest content creator. Your task is to analyze a product and generate high-quality Pinterest pin content, SEO data, and image prompt instructions.
 
 Return ONLY valid JSON (no markdown, no code blocks, no explanations). The response MUST be parseable JSON.`;
@@ -111,20 +111,20 @@ Generate ONLY the JSON response. No other text.`;
     },
   ];
 
-  console.log('[Content Generation] Starting Grok request');
-  const grokResponse = await callGrokWithRetry(messages);
+  console.log('[Content Generation] Starting Groq request');
+  const groqResponse = await callGroqWithRetry(messages);
 
-  // Extract text from Grok response
+  // Extract text from Groq response
   let generatedText = '';
-  if (grokResponse.choices && grokResponse.choices.length > 0) {
-    const message = grokResponse.choices[0].message;
+  if (groqResponse.choices && groqResponse.choices.length > 0) {
+    const message = groqResponse.choices[0].message;
     if (message && message.content) {
       generatedText = message.content;
     }
   }
 
   if (!generatedText) {
-    throw new Error('No text content returned from Grok API');
+    throw new Error('No text content returned from Groq API');
   }
 
   console.log('[Content Generation] Raw response:', generatedText.substring(0, 200));
@@ -154,7 +154,7 @@ Generate ONLY the JSON response. No other text.`;
     !parsedData.imageConcepts ||
     !parsedData.imagePrompt
   ) {
-    throw new Error('Grok response missing required fields');
+    throw new Error('Groq response missing required fields');
   }
 
   return parsedData;
@@ -190,7 +190,7 @@ app.post('/api/generate-content', async (req, res) => {
     console.log('[Request] Processing:', { amazonUrl: amazonUrl.substring(0, 50), productTitle });
 
     // Generate content
-    const content = await generateContentWithGrok(amazonUrl, productTitle, affiliateTag || '');
+    const content = await generateContentWithGroq(amazonUrl, productTitle, affiliateTag || '');
 
     // Store in cache
     responseCache.set(cacheKey, content);
@@ -215,5 +215,5 @@ app.get('/api/last-affiliate-tag', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`Grok API Key: ${GROK_API_KEY ? 'Configured' : 'NOT SET'}`);
+  console.log(`Groq API Key: ${GROQ_API_KEY ? 'Configured' : 'NOT SET'}`);
 });
