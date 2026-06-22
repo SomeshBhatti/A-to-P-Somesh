@@ -27,7 +27,25 @@ function getCacheKey(amazonUrl, productTitle) {
 
 const MODELS = {
   groq: {
-    name: 'Groq',
+    name: 'Groq (Primary)',
+    endpoint: 'https://api.groq.com/v1/chat/completions',
+    apiKey: process.env.GROQ_API_KEY,
+    model: 'gemma-2-9b-it',
+    timeout: 30000,
+    enabled: !!process.env.GROQ_API_KEY,
+    type: 'openai',
+  },
+  groq_llama: {
+    name: 'Groq Llama 3.1',
+    endpoint: 'https://api.groq.com/v1/chat/completions',
+    apiKey: process.env.GROQ_API_KEY,
+    model: 'llama-3.1-70b-versatile',
+    timeout: 30000,
+    enabled: !!process.env.GROQ_API_KEY,
+    type: 'openai',
+  },
+  groq_mixtral: {
+    name: 'Groq Mixtral',
     endpoint: 'https://api.groq.com/v1/chat/completions',
     apiKey: process.env.GROQ_API_KEY,
     model: 'mixtral-8x7b-32768',
@@ -44,20 +62,11 @@ const MODELS = {
     enabled: process.env.OLLAMA_ENABLED === 'true',
     type: 'openai',
   },
-  huggingface: {
-    name: 'HuggingFace',
-    endpoint: 'https://api-inference.huggingface.co/v1/chat/completions',
-    apiKey: process.env.HUGGINGFACE_API_KEY,
-    model: 'mistralai/Mistral-7B-Instruct-v0.1',
-    timeout: 60000,
-    enabled: !!process.env.HUGGINGFACE_API_KEY,
-    type: 'openai',
-  },
 };
 
 // Get enabled models in priority order
 function getEnabledModels() {
-  const modelOrder = ['groq', 'ollama', 'huggingface'];
+  const modelOrder = ['groq', 'groq_llama', 'groq_mixtral', 'ollama'];
   return modelOrder
     .filter(key => MODELS[key].enabled)
     .map(key => ({ key, ...MODELS[key] }));
@@ -300,7 +309,6 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Available models: ${getEnabledModels().map(m => m.name).join(', ') || 'NONE'}`);
   console.log('\nSetup instructions:');
-  console.log('1. Groq: export GROQ_API_KEY=your_key');
+  console.log('1. Groq: export GROQ_API_KEY=your_groq_key');
   console.log('2. Ollama: export OLLAMA_ENABLED=true (requires Ollama running locally)');
-  console.log('3. HuggingFace: export HUGGINGFACE_API_KEY=your_key');
 });
