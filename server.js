@@ -21,36 +21,82 @@ function getCacheKey(amazonUrl, productTitle) {
   return `${amazonUrl}||${productTitle}`;
 }
 
-// Groq API endpoint
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
+// ============================================
+// AI MODEL CONFIGURATION & FALLBACK SYSTEM
+// ============================================
 
-// Retry logic - max 3 retries
-async function callGroqWithRetry(messages, retries = 3) {
+const MODELS = {
+  groq: {
+    name: 'Groq',
+    endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+    apiKey: process.env.GROQ_API_KEY,
+    model: 'groq/compound',
+    timeout: 30000,
+    enabled: !!process.env.GROQ_API_KEY,
+    type: 'openai', // Uses OpenAI-compatible format
+  },
+  ollama: {
+    name: 'Ollama (Local)',
+    endpoint: process.env.OLLAMA_ENDPOINT || 'http://localhost:11434/v1/chat/completions',
+    apiKey: 'not-needed',
+    model: process.env.OLLAMA_MODEL || 'mistral',
+    timeout: 60000,
+    enabled: process.env.OLLAMA_ENABLED === 'true',
+    type: 'openai',
+  },
+  huggingface: {
+    name: 'HuggingFace',
+    endpoint: 'https://api-inference.huggingface.co/v1/chat/completions',
+    apiKey: process.env.HUGGINGFACE_API_KEY,
+    model: 'mistralai/Mistral-7B-Instruct-v0.1',
+    timeout: 60000,
+    enabled: !!process.env.HUGGINGFACE_API_KEY,
+    type: 'openai',
+  },
+};
+
+// Get enabled models in priority order
+function getEnabledModels() {
+  const modelOrder = ['groq', 'ollama', 'huggingface'];
+  return modelOrder
+    .filter(key => MODELS[key].enabled)
+    .map(key => ({ key, ...MODELS[key] }));
+}
+
+// Log available models
+console.log('[Models] Available models:', getEnabledModels().map(m => m.name));
+
+// Call AI model with retry logic
+async function callAIModel(modelConfig, messages, retries = 2) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      console.log(`[Groq API] Attempt ${attempt}/${retries}`);
-      
+      console.log(`[${modelConfig.name}] Attempt ${attempt}/${retries}`);
+
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+
+      if (modelConfig.apiKey && modelConfig.apiKey !== 'not-needed') {
+        headers['Authorization'] = `Bearer ${modelConfig.apiKey}`;
+      }
+
       const response = await axios.post(
-        GROQ_ENDPOINT,
+        modelConfig.endpoint,
         {
-          model: 'groq/compound',
+          model: modelConfig.model,
           messages: messages,
           temperature: 0.7,
         },
         {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${GROQ_API_KEY}`,
-          },
-          timeout: 30000,
+          headers,
+          timeout: modelConfig.timeout,
         }
       );
 
-      console.log('[Groq API] Success');
-      return response.data;
+      console.log(`[${modelConfig.name}] Success`);
+      return { success: true, data: response.data, model: modelConfig.name };
     } catch (error) {
-      console.error(`[Groq API] Attempt ${attempt} failed:`, {
+      console.error(`[${modelConfig.name}] Attempt ${attempt} failed:`, {
         status: error.response?.status,
         statusText: error.response?.statusText,
         errorData: error.response?.data,
@@ -58,51 +104,46 @@ async function callGroqWithRetry(messages, retries = 3) {
       });
 
       if (attempt === retries) {
-        throw new Error(
-          `Groq API failed after ${retries} retries: ${error.response?.data?.error?.message || error.message}`
-        );
+        return {
+          success: false,
+          error: error.message,
+          model: modelConfig.name,
+        };
       }
 
-      // Wait before retry (exponential backoff)
       const delay = Math.pow(2, attempt - 1) * 1000;
-      console.log(`[Groq API] Retrying in ${delay}ms...`);
+      console.log(`[${modelConfig.name}] Retrying in ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 }
 
-// Single Groq request to generate all content
-async function generateContentWithGroq(amazonUrl, productTitle, affiliateTag = '') {
-  const systemPrompt = `You are an expert Amazon product analyst and Pinterest content creator. Your task is to analyze a product and generate high-quality Pinterest pin content, SEO data, and image prompt instructions.
+// Generate content with fallback system
+async function generateContentWithFallback(amazonUrl, affiliateTag = '') {
+  const enabledModels = getEnabledModels();
 
-Return ONLY valid JSON (no markdown, no code blocks, no explanations). The response MUST be parseable JSON.`;
+  if (enabledModels.length === 0) {
+    throw new Error(
+      'No AI models configured. Please set up Groq, Ollama, or HuggingFace API keys.'
+    );
+  }
 
-  const userPrompt = `Analyze this Amazon product and generate Pinterest content:
+  const userPrompt = `Analyze Amazon URL: ${amazonUrl}
 
-Product Title: ${productTitle}
-Amazon URL: ${amazonUrl}
-Affiliate Tag: ${affiliateTag || 'none'}
-
-Return a JSON object with this exact structure:
+Generate JSON:
 {
-  "product": {
-    "title": "optimized product title",
-    "brand": "brand name",
-    "category": "product category"
-  },
+  "product": {"title": "", "brand": "", "category": ""},
   "pinterest": {
-    "title": "Pinterest pin title (50-60 chars, compelling, SEO keyword-rich)",
-    "description": "Pinterest pin description (150-200 chars, benefit-focused, includes call-to-action)",
-    "hashtags": ["hashtag1", "hashtag2", "hashtag3", "hashtag4", "hashtag5"]
+    "title": "50-60 chars, SEO keyword-rich",
+    "description": "150-200 chars, benefit-focused, CTA",
+    "hashtags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
   },
-  "seo": {
-    "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"]
-  },
+  "seo": {"keywords": ["key1", "key2", "key3", "key4", "key5"]},
   "imageConcepts": ["concept1", "concept2", "concept3"],
-  "imagePrompt": "A detailed prompt for generating a Pinterest vertical pin (2:3 aspect ratio, 1080x1920px). Must be photorealistic, lifestyle-focused, high CTR commercial advertising style. Product naturally integrated into scene. Professional, high-quality. Space for text overlay at top. Bright, engaging, conversion-optimized."
+  "imagePrompt": "Pinterest vertical 1080x1920, photorealistic, lifestyle, product integrated, space for text overlay, high CTR commercial"
 }
 
-Generate ONLY the JSON response. No other text.`;
+Return ONLY JSON, no markdown.`;
 
   const messages = [
     {
@@ -111,86 +152,103 @@ Generate ONLY the JSON response. No other text.`;
     },
   ];
 
-  console.log('[Content Generation] Starting Groq request');
-  const groqResponse = await callGroqWithRetry(messages);
+  console.log('[Content Generation] Starting with fallback system...');
 
-  // Extract text from Groq response
-  let generatedText = '';
-  if (groqResponse.choices && groqResponse.choices.length > 0) {
-    const message = groqResponse.choices[0].message;
-    if (message && message.content) {
-      generatedText = message.content;
+  // Try each model in order
+  for (const modelConfig of enabledModels) {
+    console.log(`[Content Generation] Attempting ${modelConfig.name}...`);
+
+    const result = await callAIModel(modelConfig, messages, 2);
+
+    if (!result.success) {
+      console.log(`[Content Generation] ${modelConfig.name} failed, trying next model...`);
+      continue;
     }
+
+    // Parse response
+    let generatedText = '';
+    if (result.data.choices && result.data.choices.length > 0) {
+      const message = result.data.choices[0].message;
+      if (message && message.content) {
+        generatedText = message.content;
+      }
+    }
+
+    if (!generatedText) {
+      console.log(`[Content Generation] ${modelConfig.name} returned empty content, trying next model...`);
+      continue;
+    }
+
+    console.log(`[Content Generation] Raw response from ${modelConfig.name}:`, generatedText.substring(0, 200));
+
+    // Parse JSON
+    let parsedData;
+    try {
+      const cleanedText = generatedText
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
+        .trim();
+
+      parsedData = JSON.parse(cleanedText);
+      console.log(`[Content Generation] JSON parsed successfully using ${modelConfig.name}`);
+    } catch (parseError) {
+      console.error(`[Content Generation] ${modelConfig.name} JSON parse error:`, parseError.message);
+      console.log(`[Content Generation] Trying next model...`);
+      continue;
+    }
+
+    // Validate structure
+    if (
+      !parsedData.product ||
+      !parsedData.pinterest ||
+      !parsedData.seo ||
+      !parsedData.imageConcepts ||
+      !parsedData.imagePrompt
+    ) {
+      console.log(`[Content Generation] ${modelConfig.name} missing required fields, trying next model...`);
+      continue;
+    }
+
+    // Success!
+    return { ...parsedData, usedModel: modelConfig.name };
   }
 
-  if (!generatedText) {
-    throw new Error('No text content returned from Groq API');
-  }
-
-  console.log('[Content Generation] Raw response:', generatedText.substring(0, 200));
-
-  // Parse JSON response
-  let parsedData;
-  try {
-    // Remove markdown code blocks if present
-    const cleanedText = generatedText
-      .replace(/```json\n?/g, '')
-      .replace(/```\n?/g, '')
-      .trim();
-    
-    parsedData = JSON.parse(cleanedText);
-    console.log('[Content Generation] JSON parsed successfully');
-  } catch (parseError) {
-    console.error('[Content Generation] JSON parse error:', parseError.message);
-    console.error('[Content Generation] Failed text:', generatedText);
-    throw new Error(`Failed to parse Grok response as JSON: ${parseError.message}`);
-  }
-
-  // Validate response structure
-  if (
-    !parsedData.product ||
-    !parsedData.pinterest ||
-    !parsedData.seo ||
-    !parsedData.imageConcepts ||
-    !parsedData.imagePrompt
-  ) {
-    throw new Error('Groq response missing required fields');
-  }
-
-  return parsedData;
+  // All models failed
+  throw new Error(
+    `All AI models failed. Tried: ${enabledModels.map(m => m.name).join(', ')}`
+  );
 }
 
-// API Endpoints
+// ============================================
+// API ENDPOINTS
+// ============================================
 
 app.post('/api/generate-content', async (req, res) => {
   try {
-    const { amazonUrl, productTitle, affiliateTag } = req.body;
+    const { amazonUrl, affiliateTag } = req.body;
 
     // Validation
     if (!amazonUrl || !amazonUrl.trim()) {
       return res.status(400).json({ error: 'Amazon URL is required' });
     }
 
-    if (!productTitle || !productTitle.trim()) {
-      return res.status(400).json({ error: 'Product Title is required' });
-    }
-
-    // Save affiliate tag for future use
+    // Save affiliate tag
     if (affiliateTag && affiliateTag.trim()) {
       lastAffiliateTag = affiliateTag.trim();
     }
 
     // Check cache
-    const cacheKey = getCacheKey(amazonUrl, productTitle);
+    const cacheKey = getCacheKey(amazonUrl, '');
     if (responseCache.has(cacheKey)) {
       console.log('[Cache] Hit for:', cacheKey);
-      return res.json({ cached: true, lastAffiliateTag, ...responseCache.get(cacheKey) });
+      const cachedData = responseCache.get(cacheKey);
+      return res.json({ cached: true, lastAffiliateTag, ...cachedData });
     }
 
-    console.log('[Request] Processing:', { amazonUrl: amazonUrl.substring(0, 50), productTitle });
+    console.log('[Request] Processing:', { amazonUrl: amazonUrl.substring(0, 50) });
 
-    // Generate content
-    const content = await generateContentWithGroq(amazonUrl, productTitle, affiliateTag || '');
+    // Generate content with fallback
+    const content = await generateContentWithFallback(amazonUrl, affiliateTag || '');
 
     // Store in cache
     responseCache.set(cacheKey, content);
@@ -206,14 +264,38 @@ app.post('/api/generate-content', async (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  const enabledModels = getEnabledModels();
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    availableModels: enabledModels.map(m => m.name),
+  });
 });
 
 app.get('/api/last-affiliate-tag', (req, res) => {
   res.json({ lastAffiliateTag });
 });
 
+app.get('/api/models', (req, res) => {
+  const enabledModels = getEnabledModels();
+  const allModels = Object.entries(MODELS).map(([key, config]) => ({
+    key,
+    name: config.name,
+    enabled: config.enabled,
+    model: config.model,
+  }));
+
+  res.json({
+    available: enabledModels.map(m => m.name),
+    all: allModels,
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-  console.log(`Groq API Key: ${GROQ_API_KEY ? 'Configured' : 'NOT SET'}`);
+  console.log(`Available models: ${getEnabledModels().map(m => m.name).join(', ') || 'NONE'}`);
+  console.log('\nSetup instructions:');
+  console.log('1. Groq: export GROQ_API_KEY=your_key');
+  console.log('2. Ollama: export OLLAMA_ENABLED=true (requires Ollama running locally)');
+  console.log('3. HuggingFace: export HUGGINGFACE_API_KEY=your_key');
 });
